@@ -14,3 +14,10 @@ Spec: codex-runtime, host-resource-budget, archive, cli-surface
 Mechanism read is complete: Codex’s loaded census includes subAgent/thread-spawn rows that have no SpexCode runtime record, while resource projection joins only exact harness_session_id records and therefore exposes loaded protective references as unowned. Cold close then checks active/archived collections and currently folds a loaded-only reference missing from both into the same text as a truly absent thread.
 
 Decision: keep close fail-closed and add an adapter-owned `spex session release <native-thread>` proof path for one exact loaded, unowned, idle, descendant-free Codex thread. The refusal will carry a typed blocker so unowned points at `release` and absent remains a distinct red reason.
+
+<!-- reply: 7f306063-2ecd-4628-ac26-6077f2d75a89 @ 2026-09-21T03:10:37.033Z -->
+Spec: codex-runtime, host-resource-budget, archive, cli-surface, spec-cli
+
+现场夹具已纳入实现边界：close 只释放 rollout parent 链落在本次 target subtree 的 loaded-only subagent；foreign loaded-only subagents remain protective siblings. The cold plan now carries the parent edge and a typed native membership distinction, and a loaded-only owned child is archived/released as part of the same cold close. A truly absent member remains a distinct blocker. The porcelain escape hatch `spex session release <native-thread>` is also wired through the adapter, backend route, client, CLI, and help for standalone loaded orphan recovery.
+
+Local fixture proof now covers one target, one owned loaded-only child, and one foreign loaded-only child: the target and owned child are archived/unloaded while the foreign child remains loaded. Existing absent/duplicate/reassigned cold-proof cases still run against the changed model.
