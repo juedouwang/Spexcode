@@ -30,3 +30,8 @@ Committed as 6140739ea71a98ac3e00d9d979bab0f092c0f7fa.
 The close plan now separates native membership and parent ownership. It auto-releases loaded-only descendants whose rollout parent is in the closing subtree, leaves foreign loaded-only siblings untouched and tolerant of independent disappearance, and rejects new unexplained sibling references. A true absent native member remains a distinct blocker. The exact-thread `spex session release <native-thread>` route proves owner-free, idle, descendant-free, generation-fenced release for standalone recovery. The current rollout-missing blind spot is recorded in [[use-thread-read-cwd-to-close-the-codex-rollout-b]].
 
 Validation: Codex harness suite 121/121; TypeScript check; ESLint; CLI help tests; `spex spec lint` 0 errors (52 existing warnings); workspace build passed. The synthetic fixture covers owned and foreign loaded-only children in one close and verifies the foreign child remains loaded.
+
+<!-- reply: 7f306063-2ecd-4628-ac26-6077f2d75a89 @ 2026-09-21T03:54:48.908Z -->
+Spec: codex-runtime, host-resource-budget, archive, cli-surface, spec-cli
+
+Implementation is committed in 6140739ea71a98ac3e00d9d979bab0f092c0f7fa and ready for merge. Review evidence: [[file:review.html]]. The separate rollout-missing cwd witness follow-up is [[use-thread-read-cwd-to-close-the-codex-rollout-b]].
