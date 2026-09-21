@@ -35,3 +35,12 @@ Validation: Codex harness suite 121/121; TypeScript check; ESLint; CLI help test
 Spec: codex-runtime, host-resource-budget, archive, cli-surface, spec-cli
 
 Implementation is committed in 6140739ea71a98ac3e00d9d979bab0f092c0f7fa and ready for merge. Review evidence: [[file:review.html]]. The separate rollout-missing cwd witness follow-up is [[use-thread-read-cwd-to-close-the-codex-rollout-b]].
+
+<!-- reply: 7f306063-2ecd-4628-ac26-6077f2d75a89 @ 2026-09-21T17:41:04.091Z -->
+Spec: codex-runtime, host-resource-budget, archive, cli-surface
+
+Reimplemented from clean origin/main. Commits: a53557bd7 and 9e45f075d.
+
+The adapter now distinguishes loaded-only children from truly absent members, releases only loaded-only children whose rollout parent belongs to the closing subtree, leaves foreign loaded references outside the close plan, and exposes exact-thread release. Parentless subagents fail closed; a completely missing rollout remains the documented blind spot because loaded/list returns ids only.
+
+Verification: Codex harness 120/120, TypeScript, ESLint, CLI help tests, workspace build, and spec lint 0 errors. Review evidence: [[file:review.html]].
