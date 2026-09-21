@@ -21,3 +21,12 @@ Spec: codex-runtime, host-resource-budget, archive, cli-surface, spec-cli
 现场夹具已纳入实现边界：close 只释放 rollout parent 链落在本次 target subtree 的 loaded-only subagent；foreign loaded-only subagents remain protective siblings. The cold plan now carries the parent edge and a typed native membership distinction, and a loaded-only owned child is archived/released as part of the same cold close. A truly absent member remains a distinct blocker. The porcelain escape hatch `spex session release <native-thread>` is also wired through the adapter, backend route, client, CLI, and help for standalone loaded orphan recovery.
 
 Local fixture proof now covers one target, one owned loaded-only child, and one foreign loaded-only child: the target and owned child are archived/unloaded while the foreign child remains loaded. Existing absent/duplicate/reassigned cold-proof cases still run against the changed model.
+
+<!-- reply: 7f306063-2ecd-4628-ac26-6077f2d75a89 @ 2026-09-21T03:49:38.368Z -->
+Spec: codex-runtime, host-resource-budget, archive, cli-surface, spec-cli
+
+Committed as 6140739ea71a98ac3e00d9d979bab0f092c0f7fa.
+
+The close plan now separates native membership and parent ownership. It auto-releases loaded-only descendants whose rollout parent is in the closing subtree, leaves foreign loaded-only siblings untouched and tolerant of independent disappearance, and rejects new unexplained sibling references. A true absent native member remains a distinct blocker. The exact-thread `spex session release <native-thread>` route proves owner-free, idle, descendant-free, generation-fenced release for standalone recovery. The current rollout-missing blind spot is recorded in [[use-thread-read-cwd-to-close-the-codex-rollout-b]].
+
+Validation: Codex harness suite 121/121; TypeScript check; ESLint; CLI help tests; `spex spec lint` 0 errors (52 existing warnings); workspace build passed. The synthetic fixture covers owned and foreign loaded-only children in one close and verifies the foreign child remains loaded.
