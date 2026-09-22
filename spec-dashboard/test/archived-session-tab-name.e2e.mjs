@@ -194,6 +194,7 @@ try {
 } catch (error) {
   failure = error
   console.error(error)
+  console.error(`--- backend tail ---\n${backendLog.slice(-4000)}`)
 } finally {
   await ui?.close().catch(() => {})
   await stopChild(backend)
