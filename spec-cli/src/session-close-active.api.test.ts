@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -76,7 +76,10 @@ async function runCli(args: string[], cwd: string, env: NodeJS.ProcessEnv): Prom
 // proof reads the target's own rows through it ([[codex-runtime]]).
 type CodexFixtureThread = { id: string; cwd: string; presence: 'unknown' | 'idle' | 'active'; archived: boolean; loaded: boolean; parentThreadId?: string }
 
-function codexRpcFixture(threads: Map<string, CodexFixtureThread>, options: { falseEmptyCwd: boolean }): net.Server {
+// The real server keeps a rollout for every thread and moves it into `archived_sessions/` on archive; the cold
+// proof witnesses a member the listing does not return through that file ([[codex-runtime]]), so the fixture
+// keeps the same shape.
+function codexRpcFixture(threads: Map<string, CodexFixtureThread>, options: { falseEmptyCwd: boolean; archiveRollout?: (threadId: string) => void }): net.Server {
   return net.createServer((socket) => {
     let buffer = Buffer.alloc(0)
     let upgraded = false
@@ -109,6 +112,7 @@ function codexRpcFixture(threads: Map<string, CodexFixtureThread>, options: { fa
         if (!thread) return send({ id: message.id, error: { message: 'unknown fixture thread' } })
         thread.archived = true
         thread.loaded = false
+        options.archiveRollout?.(thread.id)
         return send({ id: message.id, result: {} })
       }
       return send({ id: message.id, error: { message: `unexpected RPC ${message.method}` } })
@@ -159,7 +163,25 @@ test('close refuses active native turns and missing evidence while retaining rec
   process.env.SPEXCODE_CODEX_SOCKET_DIR = socketDir
   process.env.SPEX_SESSION_DATABASE_PATH = join(home, 'sessions.sqlite')
   const threads = new Map<string, CodexFixtureThread>()
-  const options = { falseEmptyCwd: false }
+  const rolloutDir = join(codexHome, 'sessions', '2026', '08', '13')
+  const archivedRollouts = join(codexHome, 'archived_sessions')
+  const rolloutFile = (threadId: string) => `rollout-2026-08-13-${threadId}.jsonl`
+  // A rollout as the real server writes it: a session_meta header binding the thread's cwd (and parent for a
+  // spawned child), then the terminal record of its settled turn.
+  const writeRollout = (thread: CodexFixtureThread) => {
+    mkdirSync(rolloutDir, { recursive: true })
+    const header = { type: 'session_meta', payload: { id: thread.id, cwd: thread.cwd, ...(thread.parentThreadId ? { parent_thread_id: thread.parentThreadId } : {}) } }
+    writeFileSync(join(rolloutDir, rolloutFile(thread.id)), `${JSON.stringify(header)}\n${JSON.stringify({ type: 'event_msg', payload: { type: 'task_complete' } })}\n`)
+  }
+  const options = {
+    falseEmptyCwd: false,
+    archiveRollout: (threadId: string) => {
+      const from = join(rolloutDir, rolloutFile(threadId))
+      if (!existsSync(from)) return
+      mkdirSync(archivedRollouts, { recursive: true })
+      renameSync(from, join(archivedRollouts, rolloutFile(threadId)))
+    },
+  }
   const server = codexRpcFixture(threads, options)
   let owner: ReturnType<typeof spawnDetachedRuntime> | null = null
   let backend: ChildProcess | null = null
@@ -219,6 +241,9 @@ test('close refuses active native turns and missing evidence while retaining rec
     const falseEmptyRecord = writeRecord(falseEmptyId, falseEmptyThread)
     threads.set(falseEmptyThread, { id: falseEmptyThread, cwd: worktreeOf.get(falseEmptyId)!, presence: 'idle', archived: false, loaded: true })
     threads.set(falseEmptyChild, { id: falseEmptyChild, cwd: worktreeOf.get(falseEmptyId)!, presence: 'idle', archived: false, loaded: true, parentThreadId: falseEmptyThread })
+    // the cwd listing answers empty, so both members are witnessed through their rollouts
+    writeRollout(threads.get(falseEmptyThread)!)
+    writeRollout(threads.get(falseEmptyChild)!)
     const missingId = 'rollout-missing-close'
     const missingThread = 'rollout-missing-thread'
     const missingRecord = writeRecord(missingId, missingThread)
@@ -245,7 +270,7 @@ test('close refuses active native turns and missing evidence while retaining rec
     const base = `http://127.0.0.1:${port}`
     await waitFor(() => fetch(`${base}/health`).then((response) => response.ok).catch(() => false), `backend health\n${log}`)
 
-    const rollout = join(codexHome, 'sessions', '2026', '08', '13', `rollout-2026-08-13-${settledThread}.jsonl`)
+    const rollout = join(rolloutDir, rolloutFile(settledThread))
     mkdirSync(dirname(rollout), { recursive: true })
     writeFileSync(rollout, `${JSON.stringify({ type: 'event_msg', payload: { type: 'task_complete' } })}\n`)
     const settled = await runCli(['session', 'close', settledId, '--api', base], project, env)

@@ -99,6 +99,8 @@ export type SharedRuntimeProbe = {
     referenceId: string
     turnPresence: 'idle' | 'active' | 'unknown'
     turnId?: string
+    // the native parent of a spawned reference, when the probe's read named one
+    parentReferenceId?: string
   }>
   error?: string
 }

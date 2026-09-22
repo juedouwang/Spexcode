@@ -246,7 +246,10 @@ both the pane and backend control to the project app-server.
 ## Ownership proofs, because the runtime is shared
 
 The adapter declares its PID/isolation artifacts and a live control-plane probe. The probe reports the loaded
-thread set and whether each reference is active — active is a state of ONE loaded reference, never of another. A
+thread set, whether each reference is active — active is a state of ONE loaded reference, never of another — and
+the native parent each resident reference's rollout header names, read off disk rather than through a thread the
+census would otherwise leave alone, so the resource projection can attribute a subagent that has no record of its
+own to the session governing its ancestor ([[host-resource-budget]]). A
 record-only or queued session cannot invent a reference; a loaded thread with no matching record stays in the set
 as unowned. Ownership joins only governed records whose adapter declares this same shared-runtime descriptor, so
 a coincidentally equal id from another adapter, or a non-governed record, is not an owner. An unhealthy or
@@ -262,8 +265,10 @@ close slower than the one before it, because each close adds a row to the archiv
 reads. So the normal record-backed mutation reads the paginated loaded-ID set, both exact target descendant
 collections, and scoped rows only: the target's own rows through the exact `cwd` its governed record binds, the
 rows of any descendant whose `cwd` differs through that `cwd`, and each subtree member's direct children through
-`parentThreadId`. Every `thread/list` row already carries its live turn state, its direct parent, and its `cwd`,
-so presence and ownership for every member are answered by reads the proof performs anyway. Turn IDENTITY is the
+`parentThreadId` — plus, off the native server entirely, the rollout header of each resident thread the listing
+did not place in the subtree (below). Every `thread/list` row already carries its live turn state, its direct
+parent, and its `cwd`, so presence and ownership for every listed member are answered by reads the proof performs
+anyway. Turn IDENTITY is the
 separate question — only interrupt must name the turn it interrupts, so only interrupt pays a transcript read,
 against a target that is active by definition. Presence the daemon did not report, including two native sources
 contradicting each other, never becomes an `active` verdict.
@@ -275,40 +280,60 @@ bounded number of times under the same generation fence, while a semantic owners
 answers with the whole collection. Every scoped read therefore checks each returned row against the predicate it
 asked for — the row's `cwd` equals the requested `cwd`, the row's `parentThreadId` equals the requested parent —
 and one violating row refuses the mutation and names the filter. A record that binds no worktree `cwd` refuses
-too, rather than widening its own scope. Codex 0.153.4 has the opposite protocol fault: a `cwd` filter can return
-an empty page while descendants remain present in both the ancestor and direct-parent reads and the native rows
-carry the exact bound cwd. Only for members missing from otherwise valid scoped reads, the proof may perform one
-whole-collection compatibility pair and recover an id only when it occurs in exactly one collection and that
-row's reported `cwd` exactly equals the scope already bound for that member. Extra rows authorize nothing; an
-out-of-scope response, a missing member, a moved member, or duplicate membership still refuses. Thus a healthy
-server keeps the subtree-bounded path, while a false-empty native filter costs the old host census instead of
-making an otherwise owned subtree permanently unclosable. Quarantine (below) still uses the whole host from the
-start because no record exists to bind a cwd.
+too, rather than widening its own scope. Quarantine (below) still uses the whole host from the start because no
+record exists to bind a cwd. No whole-collection read is issued for a record-backed proof.
+
+**The listing hides what has no preview; the rollout is the witness it cannot be.** `thread/list` filters
+`threads.preview <> ''` (codex-rs `state/runtime/threads.rs`): on 0.146 in every listing, lineage filters
+included; on 0.153 in the plain and `cwd` listings, while `parentThreadId`/`ancestorThreadId` return empty-preview
+rows. A spawned subagent (`source: subagent.thread_spawn`) can live, work, and finish without ever earning a
+preview, so it is resident in `thread/loaded/list` and answers `thread/read`, yet no listing the proof performs
+returns it — on 0.146 it never enters the closure and would be left loaded, pinning the shared server as a
+reference nobody can release; on 0.153 it enters through the lineage read and no `cwd` read can then witness it.
+Its rollout is the durable witness: the `session_meta` header binds its `cwd` and, for a spawned subagent, its
+`parent_thread_id`, and the rollout's directory — the dated tree or the flat `archived_sessions/` — is its
+collection. So the proof walks the resident set through rollout headers: a resident thread the listing did not
+place in the subtree is a member when its header's parent chain reaches the subtree, and a member the scoped
+listing does not return (an empty-preview row, or a `cwd` filter the server answered empty) is witnessed by its
+rollout, whose bound `cwd` must equal the scope already bound for that member. Only positive evidence admits a
+member: a resident thread with no readable rollout, or whose header names no parent or another thread, is
+nobody's on this proof's word and is left exactly as found — the pre-fix state, never a mutation of someone
+else's thread. A member the lineage read placed in the subtree that neither its `cwd` listing nor its rollout can
+witness refuses and names both facts; a rollout that binds a different `cwd` than the member's scope refuses the
+same way. A child that one listing returns and another omits is a census fault no rollout heals. The
+continuing-cold proof of an already-archived record reads only that target's own collections and never walks the
+resident set, so a hidden child an earlier close left resident does not block retirement: the resource report
+shows it as that archived session's reference, and `resume` followed by `close` collects it through the resident
+walk.
 
 **Teardown.** Ordinary stop reads the target through its record's `cwd` and refuses descendants. Cold archive
 treats the native `ancestorThreadId` result as an ownership closure at all depths excluding the ancestor, and
 holds every fact about that closure to a second native witness before it may mutate. The target must occur in
 exactly one of the active and archived collections, on a row whose `cwd` is the record binding. Every descendant
 must occur in exactly one collection on a row matching its own reported `cwd`, and that assignment must equal the
-descendant collection that returned it; normally those rows come from the scoped reads, with the false-empty
-compatibility proof above as the only alternative. Every member's direct-parent chain must reach the target
-without a gap or a cycle, and the closure must equal the union of the subtree's direct-children reads: a child
-the closure lacks, a closure member no parent returned, or one id under two parents refuses. Every loaded
-member's turn presence comes from those same rows. It then archives the initially-active closure deepest-first
-with the ancestor last; already-archived members are proof, not mutation. The proof taken before the mutation and
-the one taken after must name the same subtree, the same parent edges, and the same collection assignment, in
-the same scope — a receipt carries its scope, and a receipt of one scope never authorizes a proof in another.
+descendant collection that returned it; normally those rows come from the scoped reads, with the rollout witness
+above as the only alternative. Every member's direct-parent chain must reach the target without a gap or a cycle,
+and the closure must equal the union of the subtree's direct-children reads: a child the closure lacks, a listed
+closure member no parent returned, or one id under two parents refuses; a rollout-witnessed member is the one edge
+no listing returns under its parent, and its header named that parent instead. Every listed loaded member's turn
+presence comes from those same rows; a rollout-witnessed member's presence is unknown to the listing and is
+settled by its rollout tail exactly as below. It then archives the initially-active closure deepest-first with
+the ancestor last; already-archived members are proof, not mutation. The proof taken before the mutation and the
+one taken after must name the same subtree, the same parent edges, and the same collection assignment, in the
+same scope — a receipt carries its scope, and a receipt of one scope never authorizes a proof in another; the
+members it witnessed through rollouts are re-witnessed the same way afterwards, since an archived unlisted member
+is neither resident nor listed.
 Scope agreement is settled where the teardown is still preventable: the stop guard compares the receipt's scope
 against what the target's record binds NOW, before it re-proves anything, and refuses a mismatch or an absent
 binding without a native read. Re-proving in the receipt's own scope would agree with itself, pass the guard,
 let the leaf teardown proceed, and only then meet the commit's scope check — a teardown performed for a proof
 that was already refused. A refused receipt authorizes no cold teardown on any seam that reads it.
 Afterwards the whole subtree must be unloaded and uniquely archived while unrelated loaded siblings stay intact.
-Duplicate active/archived membership, a member absent from both collections, a wrong `cwd` binding, changed
-ancestry, or a late replacement fails closed. For Codex cold teardown alone, an otherwise uniquely-owned member
-with unknown presence may consult the final record in its durable rollout tail: a terminal native event proves
-the turn settled, while a missing, unreadable, incomplete, or non-terminal tail stays fail-closed and names both
-the live client and the rollout evidence in its refusal. A live `active` report remains an immediate refusal the
+Duplicate active/archived membership, a member absent from both collections and unwitnessed by its rollout, a
+wrong `cwd` binding, changed ancestry, or a late replacement fails closed. For Codex cold teardown alone, an
+otherwise uniquely-owned member with unknown presence may consult the final record in its durable rollout tail: a
+terminal native event proves the turn settled, while a missing, unreadable, incomplete, or non-terminal tail stays
+fail-closed and names both the live client and the rollout evidence in its refusal. A live `active` report remains an immediate refusal the
 tail cannot override.
 
 When the exact bound generation is already reclaimed, close treats generation death as a positive empty-control
@@ -339,9 +364,9 @@ repairs a receipt. Missing, malformed, or mismatched legacy evidence is an unpro
 any teardown. Compensation lives outside the native RPC boundary: until the product commits the archive record
 and its final offline proof, a failure returns the same receipt to `restoreRuntime`, which restores all and only
 its originally-active subtree members, and only on the unchanged original generation. The receipt carries the
-scope each member was proven at, and compensation reads those same scopes: a failure path must not put back the
-whole-host cost the proof removed. A receipt-free resume remains the normal parent-only restore, read through
-its own record's `cwd` and refused without one.
+scope each member was proven at, and compensation reads those same scopes, re-reading a rollout-witnessed member
+through its rollout: a failure path must not put back the whole-host cost the proof removed. A receipt-free resume
+remains the normal parent-only restore, read through its own record's `cwd` and refused without one.
 
 ## Headless readiness
 

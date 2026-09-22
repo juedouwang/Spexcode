@@ -1,5 +1,5 @@
 import { closeSync, openSync, readSync, readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { homedir } from 'node:os'
 import { createHash, randomBytes } from 'node:crypto'
 import { createConnection, type Socket } from 'node:net'
@@ -984,6 +984,9 @@ type CodexColdPlan = Readonly<{
   subtreeIds: readonly string[]
   activeIds: readonly string[]
   archivedIds: readonly string[]
+  // Members the listing did not return, witnessed through their rollout instead ([[codex-runtime]]); the proof
+  // taken after the mutation re-witnesses exactly these the same way.
+  unlistedIds: readonly string[]
 }>
 type CodexColdPreflight = { ok: true; alreadyCold?: boolean; receipt: CodexColdPlan } | { ok: false; reason: string }
 
@@ -1002,7 +1005,7 @@ const isCodexColdPlan = (value: unknown): value is CodexColdPlan => {
     typeof plan.generation === 'string' && isEndpointLike(plan.endpoint) &&
     (plan.targetCwd === null || (typeof plan.targetCwd === 'string' && plan.targetCwd.length > 0)) && Array.isArray(plan.descendantIds) &&
     Array.isArray(plan.parentEdges) && Array.isArray(plan.subtreeIds) && Array.isArray(plan.memberCwd) &&
-    Array.isArray(plan.activeIds) && Array.isArray(plan.archivedIds) && !!plan.guard
+    Array.isArray(plan.activeIds) && Array.isArray(plan.archivedIds) && Array.isArray(plan.unlistedIds) && !!plan.guard
 }
 
 function isEndpointLike(value: unknown): value is CodexGenerationEndpoint {
@@ -1023,6 +1026,7 @@ function makeCodexColdPlan(input: {
   subtreeIds: readonly string[]
   activeIds: readonly string[]
   archivedIds: readonly string[]
+  unlistedIds: readonly string[]
   unmaterialized?: true
 }): CodexColdPlan {
   return Object.freeze({
@@ -1040,6 +1044,7 @@ function makeCodexColdPlan(input: {
     subtreeIds: Object.freeze([...input.subtreeIds]),
     activeIds: Object.freeze([...input.activeIds]),
     archivedIds: Object.freeze([...input.archivedIds]),
+    unlistedIds: Object.freeze([...input.unlistedIds]),
   })
 }
 
@@ -1062,7 +1067,16 @@ async function codexCollectionPair(read: (archived: boolean) => Promise<CodexThr
   return { ok: true, pair: { active, archived } }
 }
 
-async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, dir = runtimeRoot(), expectedGeneration?: string, endpoint = legacyCodexGenerationEndpoint(dir)): Promise<CodexColdPreflight> {
+type CodexColdProofOptions = {
+  // Cold retirement re-proves a target that is already archived and may not wait on anything outside that
+  // target's own collections, so it never walks the resident set for hidden children.
+  residentScan?: false
+  // Members a plan witnessed through their rollout. The proof taken after the mutation must find them again
+  // through that same witness: an archived unlisted member is neither resident nor listed any more.
+  expectUnlisted?: readonly string[]
+}
+
+async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, dir = runtimeRoot(), expectedGeneration?: string, endpoint = legacyCodexGenerationEndpoint(dir), opts: CodexColdProofOptions = {}): Promise<CodexColdPreflight> {
   const generation = expectedGeneration ?? codexMutationGeneration(dir, endpoint)
   if (!generation)
     return { ok: false, reason: 'Codex shared app-server generation is temporarily unproven before subtree census' }
@@ -1090,12 +1104,12 @@ async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, 
   const duplicateDescendants = activeDescendants.ids.filter((id) => archivedDescendantSet.has(id))
   if (duplicateDescendants.length)
     return { ok: false, reason: `Codex subtree members occur in both active and archived descendant collections (${duplicateDescendants.join(', ')})` }
-  const descendantIds = [...activeDescendants.ids, ...archivedDescendants.ids]
-  if (descendantIds.includes(threadId)) return { ok: false, reason: `Codex target ${threadId} is duplicated in its own descendant closure` }
+  const listedDescendantIds = [...activeDescendants.ids, ...archivedDescendants.ids]
+  if (listedDescendantIds.includes(threadId)) return { ok: false, reason: `Codex target ${threadId} is duplicated in its own descendant closure` }
 
   const targetInActive = targetRows.pair.active.ids.includes(threadId)
   const targetInArchived = targetRows.pair.archived.ids.includes(threadId)
-  if (!targetInActive && !targetInArchived && descendantIds.length === 0) {
+  if (!targetInActive && !targetInArchived && listedDescendantIds.length === 0) {
     // A Codex thread id can be registered before the server materializes its first user message. The exact
     // protocol refusal is the only proof that this absent native target is that startup window, rather than
     // an unowned/reassigned record — or a record whose cwd binding is wrong — that must stay fail-closed.
@@ -1126,6 +1140,7 @@ async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, 
           subtreeIds: [threadId],
           activeIds: loadedTarget ? [threadId] : [],
           archivedIds: [],
+          unlistedIds: [],
           unmaterialized: true,
         }),
       }
@@ -1133,6 +1148,52 @@ async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, 
   }
 
   const parentById = new Map([...activeDescendants.parentById, ...archivedDescendants.parentById])
+  const listedClosure = new Set(parentById.keys())
+  const descendantCwd = new Map([...activeDescendants.cwdById, ...archivedDescendants.cwdById])
+  const loadedSet = new Set(loaded.referenceIds)
+
+  // @@@ unlisted members - `thread/list` hides every thread whose preview is empty, and a spawned subagent can
+  // live and finish without earning one, so the listing alone would leave that resident child behind, pinning
+  // the shared app-server as a reference nobody can release. Its rollout header still names its parent and
+  // cwd, so the resident set is walked through rollouts: a resident thread whose parent chain reaches this
+  // subtree is a member. Only positive evidence admits one; a resident thread with no readable rollout is
+  // nobody's on this proof's word and is left exactly as found.
+  const listedSubtree = new Set([...listedDescendantIds, threadId])
+  const rolloutWitness = new Map<string, CodexRolloutWitnessed>()
+  const unlistedIds: string[] = []
+  const admitUnlisted = (id: string, witness: CodexRolloutParented) => {
+    unlistedIds.push(id)
+    rolloutWitness.set(id, witness)
+    parentById.set(id, witness.parentThreadId)
+    descendantCwd.set(id, witness.cwd)
+  }
+  if (opts.residentScan !== false) {
+    const candidates = new Map<string, CodexRolloutParented>()
+    for (const id of loaded.referenceIds) {
+      if (listedSubtree.has(id)) continue
+      const witness = codexRolloutWitness(id)
+      if (codexRolloutParented(witness)) candidates.set(id, witness)
+    }
+    for (let grew = true; grew;) {
+      grew = false
+      for (const [id, witness] of candidates) {
+        if (rolloutWitness.has(id) || !(listedSubtree.has(witness.parentThreadId) || rolloutWitness.has(witness.parentThreadId))) continue
+        admitUnlisted(id, witness)
+        grew = true
+      }
+    }
+  }
+  for (const id of opts.expectUnlisted ?? []) {
+    if (listedSubtree.has(id) || rolloutWitness.has(id)) continue
+    const witness = codexRolloutWitness(id)
+    if (!witness.ok)
+      return { ok: false, reason: `Codex subtree member ${id} was witnessed through its rollout before the mutation and that rollout cannot witness it now (${witness.reason})` }
+    if (!codexRolloutParented(witness))
+      return { ok: false, reason: `Codex subtree member ${id} was witnessed through its rollout before the mutation and that rollout now names no parent or cwd` }
+    admitUnlisted(id, witness)
+  }
+  const descendantIds = [...listedDescendantIds, ...unlistedIds]
+
   const depthById = new Map<string, number>()
   for (const id of descendantIds) {
     const seen = new Set([id])
@@ -1154,7 +1215,6 @@ async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, 
   // member's collection assignment is re-read through ITS OWN cwd, and the closure is re-derived from every
   // member's direct-children read. Both are bounded by the subtree. The whole-host scope already holds every
   // row, so it derives the same two witnesses from what it read and issues nothing further.
-  const descendantCwd = new Map([...activeDescendants.cwdById, ...archivedDescendants.cwdById])
   const pairByCwd = new Map<string, CodexCollectionPair>()
   const childrenByParent = new Map<string, Map<string, string | null>>()
   if (targetCwd !== null) {
@@ -1188,74 +1248,63 @@ async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, 
   const scopedPairFor = (id: string): CodexCollectionPair | null =>
     targetCwd === null ? targetRows.pair : pairByCwd.get(id === threadId ? targetCwd : descendantCwd.get(id)!) ?? null
 
-  // Codex 0.153.4 can return an empty result for a valid cwd filter even while descendants remain present in
-  // both ancestorThreadId and parentThreadId reads. Recover only that false-empty shape through one
-  // whole-collection pair: the exact missing id still has to occur once and report the cwd already bound by the
-  // target record or descendant closure.
-  // A filter that returns an out-of-scope row was refused above, and a genuinely missing or moved row remains
-  // absent here, so this compatibility read does not turn a stale binding into mutation authority.
-  const missingScopedMembers = targetCwd === null ? [] : subtreeIds.filter((id) => {
-    const pair = scopedPairFor(id)
-    return pair && !pair.active.ids.includes(id) && !pair.archived.ids.includes(id)
-  })
-  const recoveredPairById = new Map<string, CodexCollectionPair>()
-  if (missingScopedMembers.length) {
-    const whole = await codexCollectionPair((archived) => codexThreadCollection(sock, { archived, sourceKinds: [] }))
-    if (!whole.ok) return { ok: false, reason: whole.error }
-    if (codexRuntimeGeneration(dir, endpoint) !== generation)
-      return { ok: false, reason: 'shared Codex app-server generation changed during false-empty cwd recovery' }
-    for (const id of missingScopedMembers) {
-      const expectedCwd = id === threadId ? targetCwd : descendantCwd.get(id)
-      const activeCwd = whole.pair.active.ids.includes(id) ? whole.pair.active.cwdById.get(id) : undefined
-      const archivedCwd = whole.pair.archived.ids.includes(id) ? whole.pair.archived.cwdById.get(id) : undefined
-      if ((activeCwd === expectedCwd) !== (archivedCwd === expectedCwd)) recoveredPairById.set(id, whole.pair)
-    }
-  }
-  const pairFor = (id: string): CodexCollectionPair | null => recoveredPairById.get(id) ?? scopedPairFor(id)
-
+  // @@@ listing or rollout - a member's collection assignment normally comes from the scoped listing. A member
+  // the listing does not return (an empty-preview row, or a cwd filter the server answered empty) is witnessed
+  // by its rollout instead: the header binds its cwd, and the rollout's location — the dated tree or
+  // `archived_sessions/` — is the collection. The listing reported no presence for such a member, so the
+  // loaded-member check below settles it from the rollout tail. A member neither listed nor witnessed refuses.
+  const unlistedSet = new Set(unlistedIds)
   const activeMembers = new Set<string>()
   const archivedMembers = new Set<string>()
   const statusById = new Map<string, CodexThreadStatus>()
   for (const id of subtreeIds) {
-    const pair = pairFor(id)
-    if (!pair) return { ok: false, reason: `Codex subtree member ${id} has no scoped collection witness` }
-    const inActive = pair.active.ids.includes(id)
-    const inArchived = pair.archived.ids.includes(id)
-    if (!inActive && !inArchived)
-      return { ok: false, reason: `Codex subtree member ${id} is absent from both native collections (unowned or reassigned)` }
+    const pair = unlistedSet.has(id) ? null : scopedPairFor(id)
+    if (!unlistedSet.has(id) && !pair) return { ok: false, reason: `Codex subtree member ${id} has no scoped collection witness` }
+    let inActive = !!pair && pair.active.ids.includes(id)
+    let inArchived = !!pair && pair.archived.ids.includes(id)
     if (inActive && inArchived)
       return { ok: false, reason: `Codex subtree member ${id} occurs in both active and archived native collections` }
-    if (id !== threadId) {
-      const expectedActive = activeDescendantSet.has(id)
-      if (inActive !== expectedActive)
-        return { ok: false, reason: `Codex subtree member ${id} changed collection assignment during ownership census` }
+    if (!inActive && !inArchived) {
+      const expectedCwd = id === threadId ? targetCwd : descendantCwd.get(id) ?? null
+      const witness = rolloutWitness.get(id) ?? codexRolloutWitness(id)
+      if (!witness.ok)
+        return { ok: false, reason: `Codex subtree member ${id} is absent from both native collections and its rollout cannot witness it (${witness.reason})` }
+      if (expectedCwd !== null && witness.cwd !== expectedCwd)
+        return { ok: false, reason: `Codex subtree member ${id} is absent from both native collections at cwd ${expectedCwd}; its rollout binds cwd ${witness.cwd ?? 'none'}` }
+      if (!unlistedSet.has(id)) { unlistedSet.add(id); unlistedIds.push(id); rolloutWitness.set(id, witness) }
+      inActive = !witness.archived
+      inArchived = witness.archived
+      statusById.set(id, 'unknown')
+    } else {
+      statusById.set(id, (inActive ? pair!.active : pair!.archived).statusById.get(id) ?? 'unknown')
     }
-    // The selected pair already proved this member's cwd: either the scoped read rejected every outside row, or
-    // the compatibility recovery admitted this exact id only after its whole-collection row matched the binding.
+    if (id !== threadId && listedSubtree.has(id) && inActive !== activeDescendantSet.has(id))
+      return { ok: false, reason: `Codex subtree member ${id} changed collection assignment during ownership census` }
     if (inActive) activeMembers.add(id)
     if (inArchived) archivedMembers.add(id)
-    statusById.set(id, (inActive ? pair.active : pair.archived).statusById.get(id) ?? 'unknown')
   }
 
-  // The closure and the direct-children reads must describe the same tree, edge for edge.
+  // The closure and the direct-children reads must describe the same tree, edge for edge. A child one listing
+  // returns and the other omits is a census fault, whatever its rollout says; a rollout-witnessed member is the
+  // one edge NEITHER listing returns, and its header named the parent instead.
   for (const [parent, children] of childrenByParent) {
     for (const [child, reportedParent] of children) {
       if (child === threadId) return { ok: false, reason: `Codex target ${threadId} is reported as a child of its own subtree member ${parent}` }
-      if (!parentById.has(child))
+      if (!listedClosure.has(child))
         return { ok: false, reason: `Codex subtree member ${parent} has child ${child} that the descendant closure omitted` }
       if (parentById.get(child) !== parent || reportedParent !== parent)
         return { ok: false, reason: `Codex descendant ${child} has conflicting parents (${parentById.get(child)} and ${parent})` }
     }
   }
   for (const id of descendantIds) {
+    if (unlistedSet.has(id)) continue
     const parent = parentById.get(id)!
     if (!childrenByParent.get(parent)?.has(id))
       return { ok: false, reason: `Codex descendant ${id} is in the closure but its parent ${parent} did not return it as a child` }
   }
 
-  // Every subtree member was just proven to occur in exactly one scoped collection, and that row already
+  // Every listed member was just proven to occur in exactly one scoped collection, and that row already
   // carries its live turn state. No further native reads, and therefore no further generation fence.
-  const loadedSet = new Set(loaded.referenceIds)
   const loadedSubtreeIds = subtreeIds.filter((id) => loadedSet.has(id))
   for (const id of loadedSubtreeIds) {
     const presence = codexPresenceFromStatus(statusById.get(id))
@@ -1280,13 +1329,13 @@ async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, 
     targetTurnPresence,
     descendantIds: [...descendantIds],
   }
-  const activeIds = [...activeDescendants.ids]
+  const activeIds = descendantIds.filter((id) => activeMembers.has(id))
     .sort((left, right) => (depthById.get(right) ?? 0) - (depthById.get(left) ?? 0))
     .concat(activeMembers.has(threadId) ? [threadId] : [])
-  const archivedIds = [...archivedDescendants.ids, ...(archivedMembers.has(threadId) ? [threadId] : [])]
+  const archivedIds = [...descendantIds.filter((id) => archivedMembers.has(id)), ...(archivedMembers.has(threadId) ? [threadId] : [])]
   const parentEdges = descendantIds.map((id) => [id, parentById.get(id)!] as const)
   const memberCwd = targetCwd === null ? [] : subtreeIds.map((id) => [id, id === threadId ? targetCwd : descendantCwd.get(id)!] as const)
-  const receipt = makeCodexColdPlan({ threadId, generation, endpoint, targetCwd, memberCwd, guard, descendantIds, parentEdges, subtreeIds, activeIds, archivedIds })
+  const receipt = makeCodexColdPlan({ threadId, generation, endpoint, targetCwd, memberCwd, guard, descendantIds, parentEdges, subtreeIds, activeIds, archivedIds, unlistedIds })
   return { ok: true, ...(activeIds.length ? {} : { alreadyCold: true }), receipt }
 }
 
@@ -1296,10 +1345,10 @@ async function codexColdPreflightOnce(threadId: string, scope: CodexProofScope, 
 const isTransientCodexCensusFailure = (reason: string): boolean =>
   /(?:temporarily unproven|timed out|connection|closed during|refused .*census|census failed|app-server busy)/i.test(reason)
 
-async function codexColdPreflight(threadId: string, scope: CodexProofScope, dir = runtimeRoot(), expectedGeneration?: string, endpoint = legacyCodexGenerationEndpoint(dir)): Promise<CodexColdPreflight> {
+async function codexColdPreflight(threadId: string, scope: CodexProofScope, dir = runtimeRoot(), expectedGeneration?: string, endpoint = legacyCodexGenerationEndpoint(dir), opts: CodexColdProofOptions = {}): Promise<CodexColdPreflight> {
   const deadline = Date.now() + CODEX_COLD_PREFLIGHT_DEADLINE_MS
   for (let attempt = 0; attempt < CODEX_COLD_PREFLIGHT_MAX_ATTEMPTS; attempt++) {
-    const result = await codexColdPreflightOnce(threadId, scope, dir, expectedGeneration, endpoint)
+    const result = await codexColdPreflightOnce(threadId, scope, dir, expectedGeneration, endpoint, opts)
     if (result.ok || !isTransientCodexCensusFailure(result.reason) || attempt === CODEX_COLD_PREFLIGHT_MAX_ATTEMPTS - 1) return result
     const remaining = deadline - Date.now()
     if (remaining <= 0) return result
@@ -1429,7 +1478,7 @@ async function codexMutationGuard(
   if (!scope) return refusedReceipt(CODEX_NO_SCOPE)
   if (opts.coldReceipt.targetCwd !== codexScopeCwd(scope))
     return refusedReceipt('adapter cold teardown receipt was proven in a different scope than this record binds')
-  const current = await codexColdPreflight(threadId, scope, dir, opts.coldReceipt.generation, endpoint)
+  const current = await codexColdPreflight(threadId, scope, dir, opts.coldReceipt.generation, endpoint, { expectUnlisted: opts.coldReceipt.unlistedIds })
   if (!current.ok) return refusedReceipt(current.reason)
   const authorized = sameIdSet(opts.coldReceipt.descendantIds, current.receipt.descendantIds) &&
     sameParentEdges(opts.coldReceipt.parentEdges, current.receipt.parentEdges) &&
@@ -1457,6 +1506,12 @@ async function codexPlanCollections(plan: CodexColdPlan): Promise<{ ok: true; ac
   for (const [isArchived, result] of reads) {
     if (!result.ok) return { ok: false }
     for (const id of result.ids) (isArchived ? archived : active).add(id)
+  }
+  // A member the listing never returned is read back the way the plan witnessed it: through its rollout.
+  for (const id of plan.unlistedIds) {
+    const witness = codexRolloutWitness(id)
+    if (!witness.ok) return { ok: false }
+    ;(witness.archived ? archived : active).add(id)
   }
   return { ok: true, active, archived }
 }
@@ -1618,7 +1673,10 @@ export function codexSharedRuntimeProbe(dir = runtimeRoot(), endpoint = legacyCo
         // Continue with the complete paginated set, not just the first manager page.
         if (!loadedIds.size) return done({ healthy: true, references: [] })
         const wanted = referenceIds === undefined ? [...loadedIds] : [...loadedIds].filter((threadId) => referenceIds.includes(threadId))
-        loadedIds.forEach((threadId) => references.set(threadId, { referenceId: threadId, turnPresence: 'unknown' }))
+        // Every resident reference carries the parent its rollout names, record or no record: that is how a
+        // spawned subagent is attributed to the session governing its ancestor ([[host-resource-budget]]) without
+        // reading a thread the census would otherwise leave alone.
+        loadedIds.forEach((threadId) => references.set(threadId, { referenceId: threadId, turnPresence: 'unknown', ...codexReferenceParent(threadId) }))
         // A draining generation deliberately has no native turn reads. Complete the census after recording
         // loaded ownership; leaving the request map empty would otherwise wait for the global timeout forever.
         if (!wanted.length) return done({ healthy: true, references: [...references.values()] })
@@ -1639,6 +1697,7 @@ export function codexSharedRuntimeProbe(dir = runtimeRoot(), endpoint = legacyCo
         const turnId = activeTurnIdFromThread(m.result)
         const nativeStatus = typeof thread?.status === 'string' ? thread.status : thread?.status?.type
         references.set(threadId, {
+          ...references.get(threadId),
           referenceId: threadId,
           turnPresence: turnId || nativeStatus === 'active' ? 'active' : nativeStatus === 'idle' ? 'idle' : 'unknown',
           ...(turnId ? { turnId } : {}),
@@ -1859,6 +1918,72 @@ export function codexRolloutBytes(threadId: string, root?: string): { bytes: num
   const path = codexRolloutPath(threadId, root)
   if (path) { try { return { bytes: statSync(path).size } } catch { return { unreadable: true } } }
   return { bytes: 0 }
+}
+
+// @@@ rollout witness - what the app-server's listing cannot say about a thread, its rollout can. `thread/list`
+// hides every row whose preview is empty (codex-rs state/runtime/threads.rs: `threads.preview <> ''` — on every
+// listing in 0.146, on the plain and cwd listings in 0.153), and a spawned subagent may live and finish without
+// ever earning a preview. Its rollout header still binds its `cwd` and, for a spawned subagent, its
+// `parent_thread_id`; the rollout's directory — the dated tree or the flat `archived_sessions/` — is the
+// collection the listing would have reported. The header names the thread it belongs to, so a rollout found by
+// name that speaks for another thread is no witness.
+type CodexRolloutWitness =
+  | { ok: true; parentThreadId: string | null; cwd: string | null; archived: boolean }
+  | { ok: false; reason: string }
+type CodexRolloutWitnessed = Extract<CodexRolloutWitness, { ok: true }>
+type CodexRolloutParented = CodexRolloutWitnessed & { parentThreadId: string; cwd: string }
+const codexRolloutParented = (witness: CodexRolloutWitness): witness is CodexRolloutParented =>
+  witness.ok && !!witness.parentThreadId && !!witness.cwd
+const CODEX_ROLLOUT_HEADER_CHUNK_BYTES = 64 * 1024
+const CODEX_ROLLOUT_HEADER_MAX_BYTES = 4 * 1024 * 1024
+function codexRolloutWitness(threadId: string, root?: string): CodexRolloutWitness {
+  const path = codexRolloutPath(threadId, root)
+  if (!path) return { ok: false, reason: 'rollout is missing' }
+  let fd: number | null = null
+  try {
+    fd = openSync(path, 'r')
+    let header = Buffer.alloc(0)
+    for (;;) {
+      const chunk = Buffer.allocUnsafe(CODEX_ROLLOUT_HEADER_CHUNK_BYTES)
+      const read = readSync(fd, chunk, 0, chunk.length, header.length)
+      header = Buffer.concat([header, chunk.subarray(0, read)])
+      if (read < chunk.length || header.includes(0x0a) || header.length >= CODEX_ROLLOUT_HEADER_MAX_BYTES) break
+    }
+    const newline = header.indexOf(0x0a)
+    const line = (newline < 0 ? header : header.subarray(0, newline)).toString('utf8').trim()
+    if (!line) return { ok: false, reason: 'rollout header is empty' }
+    const entry = JSON.parse(line) as { type?: unknown; payload?: { id?: unknown; parent_thread_id?: unknown; cwd?: unknown } | null }
+    if (entry.type !== 'session_meta' || !entry.payload || typeof entry.payload !== 'object')
+      return { ok: false, reason: 'rollout header is not a session_meta record' }
+    if (entry.payload.id !== threadId) return { ok: false, reason: `rollout header names thread ${String(entry.payload.id)}` }
+    const parent = entry.payload.parent_thread_id
+    if (parent !== undefined && parent !== null && typeof parent !== 'string') return { ok: false, reason: 'rollout parent_thread_id is malformed' }
+    const cwd = entry.payload.cwd
+    return {
+      ok: true,
+      parentThreadId: typeof parent === 'string' && parent ? parent : null,
+      cwd: typeof cwd === 'string' && cwd ? cwd : null,
+      archived: basename(dirname(path)) === 'archived_sessions',
+    }
+  } catch (error) {
+    return { ok: false, reason: `rollout header is unreadable (${error instanceof Error ? error.message : String(error)})` }
+  } finally {
+    if (fd !== null) closeSync(fd)
+  }
+}
+
+// A reference's native parent, read once from its rollout header and remembered: a thread's parent never
+// changes, and the resource report samples the resident set on every tick. A missing rollout is not remembered,
+// so a header that lands later is still read.
+const codexReferenceParents = new Map<string, string | null>()
+function codexReferenceParent(threadId: string): { parentReferenceId?: string } {
+  if (!codexReferenceParents.has(threadId)) {
+    const witness = codexRolloutWitness(threadId)
+    if (!witness.ok) return {}
+    codexReferenceParents.set(threadId, witness.parentThreadId)
+  }
+  const parent = codexReferenceParents.get(threadId)
+  return parent ? { parentReferenceId: parent } : {}
 }
 
 type CodexRolloutTurnSettlement = { settled: true } | { settled: false; reason: string }
@@ -2215,7 +2340,7 @@ export const codexHarness: Harness = {
     if (!endpoint) return { ok: false, reason: 'no exact Codex generation binding is registered for this target' }
     const scope = codexRecordScope(rec)
     if (!scope) return { ok: false, reason: CODEX_NO_SCOPE }
-    const result = await codexColdPreflight(threadId, scope, dir, undefined, endpoint)
+    const result = await codexColdPreflight(threadId, scope, dir, undefined, endpoint, { residentScan: false })
     if (!result.ok) return result
     const generationBefore = result.receipt.generation
     if (codexRuntimeGeneration(dir, endpoint) !== generationBefore)
@@ -2257,7 +2382,7 @@ export const codexHarness: Harness = {
     if (!scope) return { ok: false, reason: CODEX_NO_SCOPE }
     if (frozenPlan && frozenPlan.targetCwd !== codexScopeCwd(scope))
       return { ok: false, reason: 'Codex cold teardown receipt was proven in a different scope than this record binds' }
-    const preflight = await codexColdPreflight(threadId, scope, dir, frozenPlan?.generation, endpoint)
+    const preflight = await codexColdPreflight(threadId, scope, dir, frozenPlan?.generation, endpoint, { expectUnlisted: frozenPlan?.unlistedIds })
     if (!preflight.ok) return preflight
     const plan = frozenPlan ?? preflight.receipt
     if (frozenPlan && (!sameIdSet(frozenPlan.descendantIds, preflight.receipt.descendantIds) ||
@@ -2278,7 +2403,7 @@ export const codexHarness: Harness = {
     }
 
     const coldCheck = async (): Promise<{ ok: true } | { ok: false; reason: string }> => {
-      const after = await codexColdPreflight(threadId, codexPlanScope(plan), dir, plan.generation, endpoint)
+      const after = await codexColdPreflight(threadId, codexPlanScope(plan), dir, plan.generation, endpoint, { expectUnlisted: plan.unlistedIds })
       if (!after.ok) return after
       if (codexRuntimeGeneration(dir, endpoint) !== plan.generation) return { ok: false, reason: 'shared Codex app-server generation changed during archive' }
       if (!sameIdSet(plan.descendantIds, after.receipt.descendantIds) || !sameParentEdges(plan.parentEdges, after.receipt.parentEdges))
