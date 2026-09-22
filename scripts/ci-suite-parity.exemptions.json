@@ -6,6 +6,7 @@
   },
   "files": {
     "scripts/gugu-tab.e2e.mjs": "gugu-browser",
+    "spec-cli/test/service-cwd.e2e.mjs": "cli-e2e",
     "spec-cli/test/session-close-dirty.e2e.mjs": "cli-e2e",
     "spec-cli/test/session-close-legacy.e2e.mjs": "cli-e2e",
     "spec-cli/test/session-close-ref-failure.e2e.mjs": "cli-e2e",
@@ -36,6 +37,7 @@
     "spec-dashboard/test/live-tail.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/lock-hint.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/new-issue-page.e2e.mjs": "dashboard-browser",
+    "spec-dashboard/test/new-issue-send-to.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/node-menu-copy-url.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/one-navigator.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/ownership-audit.e2e.mjs": "dashboard-browser",
