@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const source = readFileSync(new URL('./TabStrip.jsx', import.meta.url), 'utf8')
+const sessionInterface = readFileSync(new URL('./SessionInterface.jsx', import.meta.url), 'utf8')
 const gesture = readFileSync(new URL('./dragGesture.js', import.meta.url), 'utf8')
 const sideBar = readFileSync(new URL('./SideBar.jsx', import.meta.url), 'utf8')
 const shell = readFileSync(new URL('./Shell.jsx', import.meta.url), 'utf8')
@@ -106,11 +107,25 @@ test('dragging a tab outside the viewport opens its scoped address and closes th
 
 test('session tabs use the shared visible title, not the stable search handle', () => {
   assert.match(source, /import \{ moveTab, setTabTitle, tabKey, useTabs \} from '\.\/tabs\.js'/)
-  assert.match(source, /const title = s \? sessionHeadline\(s\) : \(tab\.title \|\| tab\.param\.slice\(0, 8\)\)/)
+  assert.match(source, /const title = s \? sessionHeadline\(s\) : \(names\?\.get\(routeHash\('sessions', tab\.param\)\) \|\| tab\.title \|\| tab\.param\.slice\(0, 8\)\)/)
   assert.match(source, /setTabTitle\(tab, title\)/)
   assert.doesNotMatch(source, /localStorage/)
   assert.doesNotMatch(source, /archive-index/)
   assert.match(tabs, /export const setTabTitle = \(tabOrKey, title\)/)
+})
+
+test('a session the board holds no projection of is named by its document, not its raw id', () => {
+  // The board's session projection is live-only, so a session opened from the archive index or restored
+  // by a record probe would otherwise fall to the raw selector. The document reports its own name
+  // ([[document-actions]]); the strip reads projection → report → persisted title, and the write-through
+  // persists the report onto the tab record so the name survives the document's unmount.
+  assert.match(source, /function label\(tab, \{ specs, sessions, names, t \}\)/)
+  assert.match(source, /const title = session \? sessionHeadline\(session\) : \(names\.get\(routeHash\('sessions', tab\.param\)\) \|\| ''\)/)
+  assert.match(source, /\}, \[sessions, tabs, names\]\)/)
+  // the writer side: the session document reports only an id the board does not carry — one writer per
+  // name — under the SAME object key the strip reads, and through the one visible-name door.
+  assert.match(sessionInterface, /const boardHoldsSelection = !!sessions\?\.some\(\(s\) => s\.id === active\)/)
+  assert.match(sessionInterface, /useReportDocumentName\(\s*selSession && !boardHoldsSelection \? routeHash\('sessions', active\) : null,\s*selSession \? sessionHeadline\(selSession\) : '',\s*\)/)
 })
 
 test('Spec detail tabs keep the resident icon and slot while naming the focused document', () => {
