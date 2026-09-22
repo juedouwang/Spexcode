@@ -1057,7 +1057,7 @@ type CodexProofScope = CodexBoundProofScope | { wholeHost: true }
 const codexScopeCwd = (scope: CodexProofScope): string | null => 'cwd' in scope ? scope.cwd : null
 const codexRecordScope = (rec: { worktreePath?: string | null }): CodexBoundProofScope | null =>
   typeof rec.worktreePath === 'string' && rec.worktreePath ? { cwd: rec.worktreePath } : null
-const CODEX_NO_SCOPE = 'the governed record binds no worktree cwd, so the native subtree proof has no scope'
+const CODEX_NO_SCOPE = 'the governed record binds no worktree cwd, so the native subtree census has no scope'
 
 type CodexCollectionPair = { active: Extract<CodexThreadCollectionResult, { ok: true }>; archived: Extract<CodexThreadCollectionResult, { ok: true }> }
 async function codexCollectionPair(read: (archived: boolean) => Promise<CodexThreadCollectionResult>): Promise<{ ok: true; pair: CodexCollectionPair } | { ok: false; error: string }> {
