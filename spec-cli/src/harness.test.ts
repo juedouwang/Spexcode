@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, statSync, rmSync, readdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, mkdirSync, existsSync, readFileSync, statSync, rmSync, readdirSync, renameSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { platform, tmpdir } from 'node:os'
 import { createServer } from 'node:net'
@@ -794,7 +794,11 @@ test('Codex cold preflight waits through a short app-server census refusal strea
 // parentThreadId / cwd exactly as the real app-server does, and each test injects ONE fault on top. Every refusal
 // is asserted by its reason AND by an empty mutation log, so a test cannot pass on an unrelated refusal and a
 // refusal can never have archived anything on its way out.
-type NativeRow = { id: string; parent?: string; cwd?: string; archived?: boolean; status?: string; loaded?: boolean; unmaterialized?: boolean }
+// `unlisted` models the app-server's `preview <> ''` listing filter on a row that never earned a preview: on codex
+// 0.146 every listing hides it ('everywhere'); on 0.153 only the parent/ancestor relation listings return it
+// ('outside-relations'). `rollout: false` is a row with no rollout on disk; `settled: false` a rollout whose tail
+// carries no terminal record.
+type NativeRow = { id: string; parent?: string; cwd?: string; archived?: boolean; status?: string; loaded?: boolean; unmaterialized?: boolean; unlisted?: 'everywhere' | 'outside-relations'; rollout?: false; settled?: false }
 type NativeFault = {
   // replace the faithful answer to one request with what a faulty server says instead
   answer?: (params: any, rows: any[], table: NativeRow[]) => any[]
@@ -812,9 +816,32 @@ const nativeDescendants = (table: NativeRow[], ancestor: string): Set<string> =>
 async function withNativeThreads(table: NativeRow[], fault: NativeFault, body: (env: { root: string; table: NativeRow[]; mutations: string[]; lists: any[] }) => Promise<void>) {
   const previousHome = process.env.SPEXCODE_HOME
   const previousSocketDir = process.env.SPEXCODE_CODEX_SOCKET_DIR
+  const previousCodexHome = process.env.CODEX_HOME
   const home = mkdtempSync(join(tmpdir(), 'spex-codex-subtree-proof-'))
   process.env.SPEXCODE_HOME = home
   process.env.SPEXCODE_CODEX_SOCKET_DIR = join(home, 'sockets')
+  // Every row is also a rollout on disk, where the real server keeps it: the dated tree while the thread is
+  // active, `archived_sessions/` once archived. The header names the row's cwd and (for a spawned subagent) its
+  // parent, and the tail carries the terminal record of a settled turn.
+  const codexHome = join(home, 'codex-home')
+  process.env.CODEX_HOME = codexHome
+  const activeRollouts = join(codexHome, 'sessions', '2026', '09', '22')
+  const archivedRollouts = join(codexHome, 'archived_sessions')
+  mkdirSync(activeRollouts, { recursive: true })
+  mkdirSync(archivedRollouts, { recursive: true })
+  const rolloutName = (id: string) => `rollout-2026-09-22T00-00-00-${id}.jsonl`
+  const moveRollout = (id: string, archived: boolean) => {
+    const from = join(archived ? activeRollouts : archivedRollouts, rolloutName(id))
+    if (existsSync(from)) renameSync(from, join(archived ? archivedRollouts : activeRollouts, rolloutName(id)))
+  }
+  for (const row of table) {
+    if (row.rollout === false) continue
+    const source = row.parent ? { subagent: { thread_spawn: { parent_thread_id: row.parent, depth: 1 } } } : 'vscode'
+    const header = { timestamp: '2026-09-22T00:00:00.000Z', type: 'session_meta', payload: { id: row.id, cwd: row.cwd ?? FIXTURE_CWD, ...(row.parent ? { parent_thread_id: row.parent } : {}), source } }
+    const terminal = { timestamp: '2026-09-22T00:00:01.000Z', type: 'event_msg', payload: { type: 'task_complete' } }
+    const lines = [JSON.stringify(header), ...(row.settled === false ? [] : [JSON.stringify(terminal)])]
+    writeFileSync(join(row.archived ? archivedRollouts : activeRollouts, rolloutName(row.id)), `${lines.join('\n')}\n`)
+  }
   const root = runtimeRoot()
   const mutations: string[] = []
   const lists: any[] = []
@@ -822,8 +849,8 @@ async function withNativeThreads(table: NativeRow[], fault: NativeFault, body: (
   const server = codexRpcFixture((message) => {
     fault.before?.(message, table, { root })
     if (message.method === 'thread/loaded/list') return { data: table.filter((row) => row.loaded).map((row) => ({ id: row.id })), nextCursor: null }
-    if (message.method === 'thread/archive') { mutations.push(`archive:${message.params.threadId}`); const row = find(message.params.threadId); if (row) { row.archived = true; row.loaded = false } return {} }
-    if (message.method === 'thread/unarchive') { mutations.push(`unarchive:${message.params.threadId}`); const row = find(message.params.threadId); if (row) row.archived = false; return {} }
+    if (message.method === 'thread/archive') { mutations.push(`archive:${message.params.threadId}`); const row = find(message.params.threadId); if (row) { row.archived = true; row.loaded = false; moveRollout(row.id, true) } return {} }
+    if (message.method === 'thread/unarchive') { mutations.push(`unarchive:${message.params.threadId}`); const row = find(message.params.threadId); if (row) { row.archived = false; moveRollout(row.id, false) } return {} }
     if (message.method === 'thread/turns/list') {
       const id = message.params.threadId
       if (find(id)?.unmaterialized) throw new Error(`thread ${id} is not materialized yet; thread/turns/list is unavailable before first user message`)
@@ -835,6 +862,7 @@ async function withNativeThreads(table: NativeRow[], fault: NativeFault, body: (
       const closure = typeof params.ancestorThreadId === 'string' ? nativeDescendants(table, params.ancestorThreadId) : null
       const rows = table
         .filter((row) => !row.unmaterialized && !!row.archived === !!params.archived)
+        .filter((row) => !row.unlisted || (row.unlisted === 'outside-relations' && (typeof params.ancestorThreadId === 'string' || typeof params.parentThreadId === 'string')))
         .filter((row) => !closure || closure.has(row.id))
         .filter((row) => typeof params.parentThreadId !== 'string' || row.parent === params.parentThreadId)
         .filter((row) => typeof params.cwd !== 'string' || (row.cwd ?? FIXTURE_CWD) === params.cwd)
@@ -856,6 +884,8 @@ async function withNativeThreads(table: NativeRow[], fault: NativeFault, body: (
     else process.env.SPEXCODE_HOME = previousHome
     if (previousSocketDir === undefined) delete process.env.SPEXCODE_CODEX_SOCKET_DIR
     else process.env.SPEXCODE_CODEX_SOCKET_DIR = previousSocketDir
+    if (previousCodexHome === undefined) delete process.env.CODEX_HOME
+    else process.env.CODEX_HOME = previousCodexHome
     rmSync(home, { recursive: true, force: true })
   }
 }
@@ -931,7 +961,7 @@ test('Codex cold proof refuses a target split across the active and archived col
   }, /subtree member target occurs in both active and archived native collections/)
 })
 
-test('Codex cold proof recovers a false-empty cwd filter through exact whole-collection rows', async () => {
+test('Codex cold proof recovers a false-empty cwd filter through the member rollout', async () => {
   await withNativeThreads([{ id: 'target', loaded: true }, { id: 'child', parent: 'target', loaded: true }], {
     // Field-reproduced on macmini with Codex 0.153.4: ancestorThreadId and parentThreadId both return the
     // child, while cwd returns an empty page even though the row and record carry the identical cwd bytes.
@@ -942,7 +972,92 @@ test('Codex cold proof recovers a false-empty cwd filter through exact whole-col
     if (!preflight?.ok) throw new Error(`false-empty cwd recovery refused: ${preflight && !preflight.ok ? preflight.reason : 'no adapter'}`)
     assert.deepEqual(await codexHarness.coldRuntime?.(rec, preflight.receipt), { ok: true })
     assert.deepEqual(mutations, ['archive:child', 'archive:target'])
-    assert.ok(lists.some((params) => !isScopedList(params)), 'the compatibility recovery reads one whole collection pair')
+    assert.deepEqual(lists.filter((params) => !isScopedList(params)), [], 'the rollout witness replaces the whole-collection compatibility read')
+  })
+})
+
+test('Codex close archives a resident subagent the listing hides and leaves a foreign hidden subagent loaded', async () => {
+  // Measured on codex 0.146.0 (state/runtime/threads.rs): `thread/list` filters `preview <> ''` on every listing,
+  // lineage filters included, so a spawned subagent that never earned a preview is resident and readable but
+  // never listed — the proof used to leave it loaded, pinning the shared app-server as an "unowned" reference.
+  const table: NativeRow[] = [
+    { id: 'target', loaded: true },
+    { id: 'hidden-subagent', parent: 'target', loaded: true, unlisted: 'everywhere' },
+    { id: 'other-root', cwd: '/fixture/bystander', loaded: true },
+    { id: 'foreign-subagent', parent: 'other-root', cwd: '/fixture/bystander', loaded: true, unlisted: 'everywhere' },
+  ]
+  await withNativeThreads(table, {}, async ({ mutations, lists, table }) => {
+    const rec = subtreeRec('target')
+    const preflight = await codexHarness.coldPreflight?.(rec)
+    if (!preflight?.ok) throw new Error(`hidden subagent preflight refused: ${preflight && !preflight.ok ? preflight.reason : 'no adapter'}`)
+    assert.deepEqual(await codexHarness.coldRuntime?.(rec, preflight.receipt), { ok: true })
+    assert.deepEqual(mutations, ['archive:hidden-subagent', 'archive:target'], 'the hidden subagent is archived before its parent; the foreign hidden subagent is not touched')
+    assert.deepEqual(table.filter((row) => row.loaded).map((row) => row.id), ['other-root', 'foreign-subagent'], 'only the target subtree is unloaded')
+    assert.deepEqual((preflight.receipt as { unlistedIds: string[] }).unlistedIds, ['hidden-subagent'], 'the plan names the member it witnessed through its rollout')
+    assert.deepEqual(lists.filter((params) => !isScopedList(params)), [], 'no whole-collection census is issued')
+    assert.deepEqual(await codexHarness.coldRetirementPreflight?.(rec), { ok: true, alreadyCold: true })
+    assert.deepEqual(await codexHarness.restoreRuntime?.(rec, preflight.receipt), { ok: true }, 'compensation restores the rollout-witnessed member too')
+    assert.deepEqual(mutations.slice(2), ['unarchive:target', 'unarchive:hidden-subagent'])
+    assert.deepEqual(table.filter((row) => row.archived).map((row) => row.id), [])
+  })
+})
+
+test('Codex close witnesses a lineage-listed member that only the relation listings return (codex 0.153 shape)', async () => {
+  // Field shape on codex 0.153.4: parentThreadId / ancestorThreadId listings include the empty-preview child while
+  // the cwd listing hides it, so the proof named it a member and then refused it as absent from both collections.
+  await withNativeThreads([{ id: 'target', loaded: true }, { id: 'relation-only-subagent', parent: 'target', loaded: true, unlisted: 'outside-relations' }], {}, async ({ mutations, lists }) => {
+    const rec = subtreeRec('target')
+    const preflight = await codexHarness.coldPreflight?.(rec)
+    if (!preflight?.ok) throw new Error(`relation-only subagent preflight refused: ${preflight && !preflight.ok ? preflight.reason : 'no adapter'}`)
+    assert.deepEqual(await codexHarness.coldRuntime?.(rec, preflight.receipt), { ok: true })
+    assert.deepEqual(mutations, ['archive:relation-only-subagent', 'archive:target'])
+    assert.deepEqual((preflight.receipt as { unlistedIds: string[] }).unlistedIds, ['relation-only-subagent'])
+    assert.deepEqual(lists.filter((params) => !isScopedList(params)), [], 'no whole-collection census is issued to recover it')
+  })
+})
+
+test('Codex close refuses a lineage-listed member that neither its cwd listing nor a rollout can witness', async () => {
+  await refusesCold([{ id: 'target', loaded: true }, { id: 'unwitnessed-subagent', parent: 'target', loaded: true, unlisted: 'outside-relations', rollout: false }], {},
+    /subtree member unwitnessed-subagent is absent from both native collections and its rollout cannot witness it/)
+})
+
+test('Codex close refuses a hidden resident subagent whose turn has not settled', async () => {
+  await refusesCold([{ id: 'target', loaded: true }, { id: 'busy-subagent', parent: 'target', loaded: true, unlisted: 'everywhere', settled: false }], {},
+    /busy-subagent turn state is unknown/)
+})
+
+test('Codex close after resume collects a hidden subagent an earlier close left resident', async () => {
+  // A pre-fix close archived only what the listing returned, so its hidden subagent stayed resident while the
+  // record went archived. The continuing-cold proof reads only the target's own collections and still holds;
+  // resuming the record and closing it again is the exit — the resident walk now claims the child.
+  const table: NativeRow[] = [
+    { id: 'target', archived: true },
+    { id: 'leftover-subagent', parent: 'target', loaded: true, unlisted: 'everywhere' },
+  ]
+  await withNativeThreads(table, {}, async ({ mutations, table }) => {
+    const rec = subtreeRec('target')
+    assert.deepEqual(await codexHarness.coldRetirementPreflight?.(rec), { ok: true, alreadyCold: true }, 'retirement never walks the resident set')
+    assert.deepEqual(await codexHarness.restoreRuntime?.(rec), { ok: true })
+    const preflight = await codexHarness.coldPreflight?.(rec)
+    if (!preflight?.ok) throw new Error(`leftover subagent preflight refused: ${preflight && !preflight.ok ? preflight.reason : 'no adapter'}`)
+    assert.deepEqual((preflight.receipt as { unlistedIds: string[] }).unlistedIds, ['leftover-subagent'])
+    assert.deepEqual(await codexHarness.coldRuntime?.(rec, preflight.receipt), { ok: true })
+    assert.deepEqual(mutations, ['unarchive:target', 'archive:leftover-subagent', 'archive:target'])
+    assert.deepEqual(table.filter((row) => row.loaded), [])
+  })
+})
+
+test('Codex close never claims a resident thread whose rollout is missing', async () => {
+  // Positive evidence only: a resident thread with no rollout is nobody's on this proof's word, so it is left
+  // exactly as found — the pre-fix leak, never a wrong archive.
+  await withNativeThreads([{ id: 'target', loaded: true }, { id: 'stray', parent: 'target', loaded: true, unlisted: 'everywhere', rollout: false }], {}, async ({ mutations, table }) => {
+    const rec = subtreeRec('target')
+    const preflight = await codexHarness.coldPreflight?.(rec)
+    if (!preflight?.ok) throw new Error(`stray-resident preflight refused: ${preflight && !preflight.ok ? preflight.reason : 'no adapter'}`)
+    assert.deepEqual(await codexHarness.coldRuntime?.(rec, preflight.receipt), { ok: true })
+    assert.deepEqual(mutations, ['archive:target'])
+    assert.equal(table.find((row) => row.id === 'stray')?.loaded, true)
+    assert.deepEqual((preflight.receipt as { unlistedIds: string[] }).unlistedIds, [])
   })
 })
 
@@ -971,9 +1086,11 @@ test('Codex cold proof refuses a leaf descendant the ancestor closure omitted, c
 })
 
 test('Codex cold proof refuses a closure whose middle member was omitted', async () => {
+  // the omitted member is resident and its rollout names the target, but its parent's direct-children read
+  // returns it too — a child one listing returns and the other omits is a census fault, never healed by a rollout
   await refusesCold(subtreeTable(), {
     answer: (params, rows) => typeof params.ancestorThreadId === 'string' ? rows.filter((row) => row.id !== 'child') : rows,
-  }, /grandchild has no complete parent chain to target/)
+  }, /target has child child that the descendant closure omitted/)
 })
 
 test('Codex cold proof refuses a closure member that no parent returns as its child', async () => {
@@ -1056,7 +1173,8 @@ test('Codex cold proof refuses a generation swap during the subtree witness roun
 })
 
 test('Codex cold proof refuses a loaded member whose turn state the server did not determine', async () => {
-  await refusesCold([{ id: 'target', loaded: true, status: 'someFutureVariant' }], {}, /target turn state is unknown/)
+  // and whose rollout tail settles nothing either — a terminal record there is the one accepted substitute
+  await refusesCold([{ id: 'target', loaded: true, status: 'someFutureVariant', settled: false }], {}, /target turn state is unknown/)
 })
 
 test('Codex cold proof refuses a loaded member with an active turn', async () => {
@@ -1323,7 +1441,7 @@ test('Codex archive refuses an unknown exact loaded target and an unowned archiv
     targetUnknown = false
     const descendant = await codexHarness.coldPreflight?.({ session: 'guarded-session', harnessSessionId: target, worktreePath: FIXTURE_CWD })
     assert.equal(descendant?.ok, false)
-    if (descendant && !descendant.ok) assert.match(descendant.reason, /archived-native-child.*absent from both.*unowned/)
+    if (descendant && !descendant.ok) assert.match(descendant.reason, /archived-native-child.*absent from both native collections/)
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()))
     await stopCodexOwner(owner)

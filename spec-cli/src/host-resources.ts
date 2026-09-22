@@ -31,6 +31,7 @@ export type ResourceReference = {
   turnPresence: 'active' | 'idle' | 'unknown' | 'none'
   protectsControlPlane: boolean
   liveness?: 'offline' | 'unknown'
+  parentThreadId?: string
 }
 
 export type ResourceOwner = {
@@ -364,8 +365,22 @@ const projectReferences = (entry: SharedEntry, probe: SharedRuntimeProbe, public
   const byThread = new Map<string, RawRecord[]>()
   for (const rec of entry.recs) if (rec.harness_session_id) byThread.set(rec.harness_session_id, [...(byThread.get(rec.harness_session_id) ?? []), rec])
   const observed = probe.healthy ? probe.references : []
+  const observedById = new Map(observed.map((reference) => [reference.referenceId, reference]))
+  // A loaded thread with no record of its own is still governed when its native parent chain reaches one: a
+  // spawned subagent belongs to the session governing its nearest recorded ancestor. Only a chain that reaches
+  // no record is unowned.
+  const ownersOf = (referenceId: string): RawRecord[] => {
+    const seen = new Set<string>()
+    for (let cursor: string | null | undefined = referenceId; cursor && !seen.has(cursor); cursor = observedById.get(cursor)?.parentReferenceId) {
+      seen.add(cursor)
+      const owners = byThread.get(cursor)
+      if (owners?.length) return owners
+    }
+    return []
+  }
   const live = observed.map((reference): ResourceReference => {
-    const owners = byThread.get(reference.referenceId) ?? []
+    const owners = ownersOf(reference.referenceId)
+    const parent = reference.parentReferenceId ? { parentThreadId: reference.parentReferenceId } : {}
     if (owners.length !== 1) return {
       sessionId: null,
       threadId: reference.referenceId,
@@ -374,6 +389,7 @@ const projectReferences = (entry: SharedEntry, probe: SharedRuntimeProbe, public
       referenceState: 'loaded',
       turnPresence: reference.turnPresence,
       protectsControlPlane: true,
+      ...parent,
     }
     const rec = owners[0]
     const publicEntry = publicById.get(rec.session_id)
@@ -385,6 +401,7 @@ const projectReferences = (entry: SharedEntry, probe: SharedRuntimeProbe, public
       referenceState: 'loaded',
       turnPresence: reference.turnPresence,
       protectsControlPlane: true,
+      ...parent,
       ...(publicEntry?.kind === 'ok' && publicEntry.liveness ? { liveness: publicEntry.liveness } : {}),
     }
   })

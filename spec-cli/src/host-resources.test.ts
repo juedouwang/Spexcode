@@ -447,6 +447,19 @@ test('shared-runtime projection uses live adapter refs and fail-closed process i
     const collisionShared = collisionReport.owners.find((owner) => owner.kind === 'shared-runtime' && owner.id === 'codex-app-server')
     assert.equal(collisionShared?.references?.find((reference) => reference.threadId === 'thread-without-record')?.ownerState, 'unowned')
     rmSync(nonGovernedDir, { recursive: true, force: true })
+    // A loaded thread with no record of its own is governed through its native parent chain: a spawned subagent
+    // belongs to the session governing its nearest recorded ancestor, and only a chain reaching no record is unowned.
+    probe = { healthy: true, references: [...governedProbe(false).references,
+      { referenceId: 'thread-subagent', turnPresence: 'idle', parentReferenceId: 'thread-target' },
+      { referenceId: 'thread-grand-subagent', turnPresence: 'idle', parentReferenceId: 'thread-subagent' },
+      { referenceId: 'thread-stray', turnPresence: 'idle', parentReferenceId: 'thread-nobody' }] }
+    const lineageReport = await collectResourceReport({ persist: false })
+    const lineageShared = lineageReport.owners.find((owner) => owner.kind === 'shared-runtime' && owner.id === 'codex-app-server')
+    const lineageRef = (thread: string) => lineageShared?.references?.find((reference) => reference.threadId === thread)
+    assert.deepEqual([lineageRef('thread-subagent')?.ownerState, lineageRef('thread-subagent')?.sessionId, lineageRef('thread-subagent')?.parentThreadId], ['governed', target, 'thread-target'])
+    assert.deepEqual([lineageRef('thread-grand-subagent')?.ownerState, lineageRef('thread-grand-subagent')?.sessionId], ['governed', target], 'attribution follows the chain past an unrecorded parent')
+    assert.deepEqual([lineageRef('thread-stray')?.ownerState, lineageRef('thread-stray')?.sessionId, lineageRef('thread-stray')?.protectsControlPlane], ['unowned', null, true])
+    assert.ok(lineageShared?.findings.includes('unowned-loaded-thread'), 'the stray is still the unowned finding; the governed subagents are not')
     probe = governedProbe(false)
     const duplicateDir = join(root, 'sessions', duplicate)
     mkdirSync(duplicateDir, { recursive: true })

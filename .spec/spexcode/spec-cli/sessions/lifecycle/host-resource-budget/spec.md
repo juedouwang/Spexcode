@@ -163,8 +163,11 @@ becomes reclaim-eligible only when live evidence proves its owner is
 terminal/retired or absent and no worktree/branch removal is required. A session being old, archived, asking,
 idle, over budget, or merely offline is never enough. Shared control planes are never orphan candidates while
 the adapter reports at least one loaded thread, whether that reference is active or idle/addressable. Record-only
-and queued-without-thread entries remain visible but do not count or protect; loaded threads with no record remain
-visible, counted, and protective. An unhealthy/unknown probe reports an unknown refcount, never a synthetic zero.
+and queued-without-thread entries remain visible but do not count or protect. A loaded thread with no record of
+its own belongs to the session governing its nearest recorded native ancestor — the adapter names the parent a
+spawned subagent was started from, off its own durable record ([[codex-runtime]]) — and only a loaded thread whose
+parent chain reaches no record is an unowned reference; both remain visible, counted, and protective. An
+unhealthy/unknown probe reports an unknown refcount, never a synthetic zero.
 
 The existing stop transition asks the adapter-owned target-scoped mutation proof before touching tmux or a leaf.
 That proof hard-gates the shared PID/start/detached-receipt/socket generation, uses the lightweight loaded-ID census, and
