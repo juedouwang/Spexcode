@@ -12,6 +12,7 @@ import { inboxCommands, uiCommandsFor } from './sessionCommands.js'
 import { ComposerSurface, ComposerTextarea, composingKey } from './Composer.jsx'
 import { routeHash } from './route.js'
 import { markNewTab, useTabs } from './tabs.js'
+import { useReportDocumentName } from './documentActions.jsx'
 import { useI18n, useT } from './i18n/index.jsx'
 import { COMMAND_DELIVERY_TIMEOUT_MS, sendSessionCommand } from './data.js'
 import { PROJECT_BASE, apiUrl } from './project.js'
@@ -553,6 +554,16 @@ export default function SessionInterface({ sessions, specs = [], focusNode, open
   }, [open, sel, validIds, setSel])
   const focusId = focusNode?.id || null
   const selSession = sessionsWithRetention.find((s) => s.id === active)
+  // The board's session projection is live-only ([[graph-lean]]), so a session this pane is reading from
+  // the archive index or a record probe has no name source the strip can see. The document reports its own
+  // name through the one-writer registry ([[document-actions]]); while the board still holds the id the
+  // document stays silent, so the projection remains that name's only writer. Same door as every surface
+  // ([[session-label]]) — the archive panel's row and this report cannot disagree.
+  const boardHoldsSelection = !!sessions?.some((s) => s.id === active)
+  useReportDocumentName(
+    selSession && !boardHoldsSelection ? routeHash('sessions', active) : null,
+    selSession ? sessionHeadline(selSession) : '',
+  )
   const [archiveIndexOpen, setArchiveIndexOpen] = useState(false)
   useEffect(() => { if (archiveRequested) setArchiveIndexOpen(true) }, [archiveRequested])
   const terminalFree = isHeadlessSession(selSession)

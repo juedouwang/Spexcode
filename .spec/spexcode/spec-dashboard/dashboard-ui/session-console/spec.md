@@ -149,7 +149,11 @@ The shell tab row owns the
 session document's action slot ([[document-actions]]); this document registers its diff-door and other session
 actions there. It does not render a second chrome band under the tabs. The one exception is the door to
 what the session has published: [[resource-picker]] floats over the document's own top-right corner instead. The shell's
-top [[tab-strip]] names the session object with its headline and status dot, with no face suffix.
+top [[tab-strip]] names the session object with its headline and status dot, with no face suffix. When the board
+holds no projection of the selected session — an archive-index row or a probe's retained record — the strip has no
+name source of its own, so this document reports that same wire title through the one-writer name registry
+([[document-actions]]); it stays silent while the board still carries the id, and the strip persists what it
+resolved onto the tab record.
 Neither console adds a second native-event view. Session identity, lifecycle,
 and liveness do **not** repeat here: the selected row in the
 left session list is the console's visible identity/state surface, so a second headline/status group only spends

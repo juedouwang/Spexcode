@@ -34,7 +34,7 @@ const outsideViewport = ({ x, y }) => x < 0 || y < 0 || x > window.innerWidth ||
 // closed in another tab, an issue not yet loaded) the raw selector shows rather than a blank chip — an
 // address that names nothing is still an address the reader typed.
 
-function label(tab, { specs, sessions, t }) {
+function label(tab, { specs, sessions, names, t }) {
   if (tab.page === 'graph') return t('tabs.graph')
   // a document names itself: a node by its own title, a file by its basename. The strip does not invent a
   // naming scheme for documents it does not own.
@@ -48,7 +48,11 @@ function label(tab, { specs, sessions, t }) {
   if (tab.page === 'sessions') {
     if (!tab.param || tab.param === 'new') return t('tabs.sessions')
     const s = sessions?.find((x) => x.id === tab.param || x.id?.startsWith(tab.param)) || pendingSessionFor(tab.param)
-    const title = s ? sessionHeadline(s) : (tab.title || tab.param.slice(0, 8))
+    // The board's session projection is live-only, so a session it has dropped — archived long ago and
+    // opened fresh from the archive index, or restored by a deep link's record probe — is named by the
+    // document's own report ([[document-actions]]) or by the last title the strip could see, never by a
+    // second board-shaped lookup. All three sources speak the one visible-name door ([[session-label]]).
+    const title = s ? sessionHeadline(s) : (names?.get(routeHash('sessions', tab.param)) || tab.title || tab.param.slice(0, 8))
     const requestedSurface = tab.query?.surface
     if (isResourceSurface(requestedSurface)) {
       const key = resourceSurfaceKey(requestedSurface)
@@ -175,10 +179,12 @@ export default function TabStrip({ specs, sessions, route, group, leading = null
     for (const tab of tabs) {
       if (tab.page !== 'sessions' || !tab.param || tab.param === 'new') continue
       const session = sessions?.find((item) => item.id === tab.param || item.id?.startsWith(tab.param))
-      const title = session ? sessionHeadline(session) : ''
+      // a name the document itself reported persists too, so it survives the document's unmount and a
+      // reload — the tab record is the strip's own memory, not a second naming source.
+      const title = session ? sessionHeadline(session) : (names.get(routeHash('sessions', tab.param)) || '')
       if (title) setTabTitle(tab, title)
     }
-  }, [sessions, tabs])
+  }, [sessions, tabs, names])
   // WHAT IS MOVING AND WHERE IT WOULD LAND — `{ key, before }`, with `before` naming the tab it would go in
   // FRONT of and null meaning the end of the strip ([[tab-strip]]'s splice). Nothing else about the strip
   // changes during a drag: the active document stays active, no address is written, and a release outside
