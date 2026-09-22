@@ -11,6 +11,7 @@
     "spec-cli/test/session-close-legacy.e2e.mjs": "cli-e2e",
     "spec-cli/test/session-close-ref-failure.e2e.mjs": "cli-e2e",
     "spec-dashboard/test/archive-shelf.e2e.mjs": "dashboard-browser",
+    "spec-dashboard/test/archived-session-tab-name.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/attachment-complete.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/band-budget.e2e.mjs": "dashboard-browser",
     "spec-dashboard/test/board-digest-fallback.e2e.mjs": "dashboard-browser",
