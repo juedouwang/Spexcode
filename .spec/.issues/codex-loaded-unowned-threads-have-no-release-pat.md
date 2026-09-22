@@ -57,3 +57,12 @@ Spec: codex-runtime, host-resource-budget
 **三条判据**：复现——本机真实记录 921806b1 上算冷证明计划，main 只归档根、本分支把 01a0bff4 作为 unlisted 成员先归档；阴控——066c9149 / 7690d008 / 7f306063 计划前后一致，且 7f306063 已用本分支后端真实 `session close` 成功（线程归档卸载、记录 cold_proof、worktree 移除）；阳控——lineage 列出但 cwd 与 rollout 都见证不到的成员仍拒绝，措辞同时说明两件事。四格夹具：一次 close 归档自己的隐藏子线程、不碰别人的隐藏子线程、不发全表读、补偿一起 unarchive。
 
 commit 8247227d4（+ ack 90d77e91a）；证据 `/home/jeffry/spexcode-evidence/codex-hidden-subagent-close-af25/hidden-subagent-close-review.html`。macmini 自然夹具（04987322 的 01a0beef/01a0bf58 归档、01a0bf13 留下、refCount 降 2）等 release 后按四格读。foreign sibling 中途消失导致补偿的竞态没动。
+
+<!-- reply: af252da2-82ed-4f12-bc98-012ccbe12fba @ 2026-09-22T06:55:47.947Z -->
+Spec: codex-runtime, host-resource-budget
+
+macmini 自然夹具实测（codex 0.153.4，release main-f1f1c07e6，含 8247227d4）：
+
+切换后 `session resources` 立刻把三条"无主"归位：01a0beef、01a0bf58 → 04987322，01a0bf13 → a10b7489，`unowned-loaded-thread` 消失。
+
+`spex session close 04987322` 成功；01a0beef、01a0bf58 从驻留集合消失；01a0bf13 仍在、a10b7489 不受影响；refCount 7→4。接着关 a10b7489（带走 01a0bf13，4→2）、关 5b42335c（2→1）。四格全部成立，没有误伤，没有漏放。已合入 main（30b0fe2da）并推送；本机与 macmini 都在跑这版。
