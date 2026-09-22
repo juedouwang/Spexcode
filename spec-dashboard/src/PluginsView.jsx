@@ -48,7 +48,7 @@ import { SpecBody } from './NodeView.jsx'
 //
 // @@@normal-is-not-drawable - a marker for the ORDINARY case must be unrepresentable, or nothing stands out
 // because everything is marked. An earlier version put order, refusal and a file count on every row and
-// read as a badge farm. So `Mark` returns null unless the thing it names is true, and `order` is drawn only
+// read as a badge farm. So a mark is drawn only when the thing it names is true, and `order` is drawn only
 // on an event carrying more than one hook — the only place the number decides anything, since elsewhere
 // position already says it.
 
@@ -63,11 +63,6 @@ const ago = (ms, t) => {
   return t('time.weeks', { n: Math.round(d / 7) })
 }
 const SURFACE_FILTERS = ['all', 'hook', 'system', 'invoked']
-
-// a mark exists only when it is TRUE; there is no neutral variant to render by accident
-const Mark = ({ when, glyph, tone, tip }) => (when
-  ? <span className={`pg-mark pg-${tone}`} data-tip={tip} aria-label={tip}>{glyph}</span>
-  : null)
 
 // The detail is the one thing the old page could not do: say what the plugin DOES. Its text is fetched per
 // selection ([[plugins-view]]), so this pane owns a small load of its own and says so rather than blanking.

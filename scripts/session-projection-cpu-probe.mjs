@@ -13,7 +13,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { syncBuiltinESMExports } from 'node:module'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 
@@ -154,7 +154,7 @@ const modulePath = (name, extension) => new URL(
 ).href
 const layout = await import('@spexcode/spec-core')
 const applicationModule = await import(modulePath('session-application', 'js'))
-const sessions = await import(modulePath('sessions', 'js'))
+await import(modulePath('sessions', 'js'))
 const graph = await import(modulePath('graphSnapshot', 'js'))
 const { warmSignature } = await import(modulePath('session-liveness', 'js'))
 const { configuredSessionApplication } = applicationModule
