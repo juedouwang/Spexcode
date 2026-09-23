@@ -1,9 +1,10 @@
 ---
 concern: session create binds [[id]] to a node the graph does not have, while --base five lines away refuses an unknown value with a 400
 by: 53f55aa4-83cc-4bb9-95a8-c75666b33d51
-status: open
+status: landed
 nodes: sessions-core, id, 节点id
 created: 2026-08-05T17:16:23.380Z
+closedAt: 2026-09-23T20:33:28.686Z
 ---
 
 Spec: sessions-core
