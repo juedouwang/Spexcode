@@ -33,6 +33,7 @@ import { processStartToken } from '@spexcode/spec-core'
 import { bindCodexGeneration, codexGenerationBindingForSession, commitCodexGenerationRegistration, prepareCodexGenerationRegistration, readCodexGenerationLedger } from './codex-runtime-generations.js'
 import { cliEntrypointArgs } from './tsx-bin.js'
 import { TMUX_PROBE_TIMEOUT_MS, TARGET_TMUX_CLOSE_SETTLE_MS, sessionHost } from './session-host.js'
+import { fetchBypassingLoopbackProxy } from './loopback-transport.js'
 import {
   agentAlive, clearLaunched, forgetAgentPid, liveness, liveSnapshot, markLaunched, paneActivity,
   readAgentPid,
@@ -769,7 +770,7 @@ async function liveRecordUrl(): Promise<string | null> {
   if (!url) return null
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), 600)
-  try { return (await fetch(`${url}/health`, { signal: ctrl.signal })).ok ? url : null }
+  try { return (await fetchBypassingLoopbackProxy(`${url}/health`, { signal: ctrl.signal })).ok ? url : null }
   catch { return null }
   finally { clearTimeout(t) }
 }
@@ -1842,7 +1843,7 @@ export async function assertProjectMatch(verb: string): Promise<void> {
   if (target.source === 'flag') return
   let settings: BackendSettings | null = null
   try {
-    const r = await fetch(`${target.url}/api/settings`)
+    const r = await fetchBypassingLoopbackProxy(`${target.url}/api/settings`)
     if (r.ok) settings = await r.json() as BackendSettings
   } catch { return }                                              // backend unreachable → the write itself surfaces it (fail-loud there)
   assertProjectSettingsMatch(verb, target, settings)
@@ -2096,7 +2097,7 @@ async function probeSessionCreateAuthority(target: ApiBaseInfo): Promise<boolean
   timer.unref?.()
   let response: Response
   try {
-    response = await fetch(`${target.url}/api/instance`, { signal: controller.signal })
+    response = await fetchBypassingLoopbackProxy(`${target.url}/api/instance`, { signal: controller.signal })
   } catch (error) {
     clearTimeout(timer)
     const failed = new Error(`backend authority read failed after connection at ${target.url}; refusing in-process session creation (${error instanceof Error ? error.message : error})`)
@@ -2134,7 +2135,7 @@ export async function createSession(prompt: string, launcher?: string, name?: st
   timer.unref?.()
   let res: Response
   try {
-    res = await fetch(`${apiUrl}/api/sessions`, {
+    res = await fetchBypassingLoopbackProxy(`${apiUrl}/api/sessions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'Idempotency-Key': requestKey },
       body: JSON.stringify(body),

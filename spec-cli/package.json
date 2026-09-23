@@ -38,7 +38,8 @@
     "@spexcode/spec-core": "0.7.0",
     "@spexcode/spec-forge": "0.7.0",
     "@spexcode/transcript": "0.7.0",
-    "smol-toml": "^1.8.0"
+    "smol-toml": "^1.8.0",
+    "undici": "^7.29.1"
   },
   "devDependencies": {
     "@types/node": "^20.16.0",

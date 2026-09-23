@@ -13,6 +13,7 @@ import { listenOrExit, LOOPBACK_HOST } from './listen.js'
 import { installConnectionReaper } from './reaper.js'
 import { postedSessionWeb, SessionWebError } from './session-web.js'
 import { ensureDashboardArtifact } from './dashboard-assets.js'
+import { loopbackHttpAgent } from './loopback-transport.js'
 
 export type PublicConfig = { password: string; tls: { cert: string; key: string } | null }
 function argFlag(name: string): string | undefined {
@@ -297,7 +298,9 @@ export function proxyHttp(req: http.IncomingMessage, res: http.ServerResponse, u
     else res.destroy()
   }
 
-  const up = http.request({ host: upstreamHost, port: upstreamPort, path: path ?? req.url, method: req.method, headers }, (received) => {
+  // loopbackHttpAgent: every proxyHttp upstream is a loopback service, and a proxy-less agent keeps the
+  // hop direct under environment proxying ([[loopback-transport]]).
+  const up = http.request({ host: upstreamHost, port: upstreamPort, path: path ?? req.url, method: req.method, headers, agent: loopbackHttpAgent }, (received) => {
     if (settled || res.destroyed) { received.destroy(); up.destroy(); return }
     upstreamResponse = received
     received.once('aborted', failFromUpstream)
