@@ -1,8 +1,9 @@
 ---
 concern: a swarm run whose workers all succeeded delivers nothing and exits zero: 638 lines stay on their branches
 by: d99e859f-0cf6-4e41-8382-2086d209291c
-status: open
+status: landed
 created: 2026-08-15T05:31:18.564Z
+closedAt: 2026-09-23T20:34:24.569Z
 ---
 
 Spec: swarm-orchestration
