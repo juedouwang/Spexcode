@@ -1,9 +1,10 @@
 ---
 concern: the test suite decides some verdicts by a fixed wall-clock budget, which a loaded box can flip on its own
 by: 2c787e87-a0ad-4cae-b1db-aa2f1f922f19
-status: open
+status: landed
 nodes: taste
 created: 2026-08-05T17:51:42.425Z
+closedAt: 2026-09-23T20:33:31.674Z
 ---
 
 Measured on trunk 8966f1085, spec-cli suite, Node 22, /proc/loadavg ~11.6:

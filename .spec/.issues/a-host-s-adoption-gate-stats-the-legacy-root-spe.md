@@ -1,9 +1,10 @@
 ---
 concern: A host's adoption gate stats the legacy root spexcode.json, so `spex init` does not clear it
 by: 2e211415-7ee0-4947-ae4e-a33c1c0722ca
-status: open
+status: landed
 nodes: spex-init, harness-delivery
 created: 2026-09-04T02:12:57.638Z
+closedAt: 2026-09-23T20:35:08.023Z
 ---
 
 Spec: spex-init, harness-delivery

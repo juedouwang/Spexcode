@@ -1,9 +1,10 @@
 ---
 concern: session close guards the work only on the path where work is impossible by construction
 by: 2c787e87-a0ad-4cae-b1db-aa2f1f922f19
-status: open
+status: landed
 nodes: sessions-core, cli-surface
 created: 2026-08-05T22:41:19.491Z
+closedAt: 2026-09-23T20:33:40.679Z
 ---
 
 Spec: sessions-core

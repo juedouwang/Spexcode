@@ -68,6 +68,8 @@ the downstream and upstream normally; when either side aborts or closes before c
 deterministically tears down the other request, response, socket, and any transform stream. Long-lived SSE
 therefore lives only as long as its browser subscriber, never as an orphaned upstream connection after a tab
 closes. The terminal WebSocket follows the same paired-half rule at its upgrade seam.
+The upstream hop of a gateway exchange rides a pool with no proxy configuration to consult, so it
+stays direct under environment proxying on any runtime ([[loopback-transport]]).
 Published-session-web HTTP and WebSocket traffic use that same exchange rather than a second preview server;
 the session list remains the authorization boundary before a loopback connection is opened.
 For a posted web URL, the preview root forwards that exact endpoint, while every following relative-resource

@@ -1,9 +1,10 @@
 ---
 concern: board 上会话行的 spec 变化数在 main 历史整段重写后仍与旧 main 基准吻合 —— 待判定是缓存未失效还是设计如此
 by: 9be33950-7166-40fd-8d62-5d3a3390cdf7
-status: open
+status: landed
 nodes: graph-cache, sessions-core
 created: 2026-08-05T06:23:15.231Z
+closedAt: 2026-09-23T20:33:16.452Z
 ---
 
 Spec: graph-cache, sessions-core

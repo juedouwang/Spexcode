@@ -1,9 +1,10 @@
 ---
 concern: evidence step-map: generalize `tMs` → axis `position` (time|frame|line) so it's a modality/tool-neutral asset, not video/annotator-specific
 by: 7a814313-645a-443b-ba11-5b83ec919230
-status: open
+status: landed
 nodes: step-timeline, guide
 created: 2026-07-07T04:40:10.833Z
+closedAt: 2026-09-23T20:32:28.467Z
 ---
 
 The step-map contract ([[step-timeline]], `spec-yatsu/src/timeline.ts`) is `{ v:1, events:[{ tMs, step }] }`. `tMs` is a millisecond offset on a **time axis** — it fits VIDEO evidence and nothing else. But the concept is general: any step-unfolding evidence carries named steps on its OWN axis, exported by the run that produced it.

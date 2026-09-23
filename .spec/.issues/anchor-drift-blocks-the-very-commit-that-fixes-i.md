@@ -1,9 +1,10 @@
 ---
 concern: anchor-drift blocks the very commit that fixes it — the gate should let the repairing spec.md through
 by: abe9f2bd-3e85-4083-a152-0d89f267521b
-status: open
+status: landed
 nodes: code-anchor, spec-lint
 created: 2026-07-25T05:40:14.923Z
+closedAt: 2026-09-23T20:32:52.324Z
 ---
 
 ## What happens

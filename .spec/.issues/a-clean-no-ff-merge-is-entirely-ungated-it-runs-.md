@@ -1,9 +1,10 @@
 ---
 concern: a clean --no-ff merge is entirely ungated — it runs pre-merge-commit, which SpexCode does not ship
 by: abe9f2bd-3e85-4083-a152-0d89f267521b
-status: open
+status: landed
 nodes: spec-lint, ci-gate
 created: 2026-07-25T08:13:54.054Z
+closedAt: 2026-09-23T20:32:55.299Z
 ---
 
 Verified empirically (git 2.43.0, throwaway repos), found while investigating an unrelated

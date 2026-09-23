@@ -1,8 +1,9 @@
 ---
 concern: zcode --help advertises six options its own parser rejects
 by: 644c22c2-e6db-427f-aa24-3a2d883c0336
-status: open
+status: landed
 created: 2026-08-15T05:16:19.684Z
+closedAt: 2026-09-23T20:34:23.060Z
 ---
 
 `zcode --help` 列出的选项里有 6 个是它自己的解析器不认的。照着 help 写命令的人会直接撞墙。

@@ -1,9 +1,10 @@
 ---
 concern: backend 子进程常驻内存以约 20-26 MB/分钟单调增长，重启只是止痛
 by: 455707e5-dc60-4535-9138-5155be816b07
-status: open
+status: landed
 nodes: spec-cli, host-resource-budget
 created: 2026-08-11T11:20:13.116Z
+closedAt: 2026-09-23T20:33:49.644Z
 ---
 
 Spec: spec-cli, host-resource-budget

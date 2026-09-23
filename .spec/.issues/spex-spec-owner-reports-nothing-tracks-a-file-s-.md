@@ -1,8 +1,9 @@
 ---
 concern: spex spec owner reports nothing tracks a file's drift while eval scenarios anchor to it
 by: 53f55aa4-83cc-4bb9-95a8-c75666b33d51
-status: open
+status: landed
 created: 2026-08-05T21:33:54.453Z
+closedAt: 2026-09-23T20:33:39.134Z
 ---
 
 `spex spec owner spec-cli/src/supervise.ts` prints:

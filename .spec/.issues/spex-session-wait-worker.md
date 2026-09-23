@@ -1,9 +1,10 @@
 ---
 concern: spex session wait 无法只跟目标而不跟自己的收件箱——督导一批 worker 时会被每条来信打断
 by: 135898e6-5b50-4b4e-8699-2747fcd873d9
-status: open
+status: landed
 nodes: session-follow
 created: 2026-07-30T01:42:52.201Z
+closedAt: 2026-09-23T20:33:07.388Z
 ---
 
 作为新 wait 落地后的第一个重度用户实测到的人机工学缺口（不是 bug,契约就是这么写的）。

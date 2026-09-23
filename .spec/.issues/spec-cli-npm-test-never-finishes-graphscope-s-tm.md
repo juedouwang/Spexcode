@@ -1,9 +1,10 @@
 ---
 concern: spec-cli npm test never finishes: graphScope's tmux gate is unreachable and --test-timeout=0 turns the block into an unbounded hang
 by: 8bb006f2-ff07-46c9-a216-83c6e32f7777
-status: open
+status: landed
 nodes: graph-cache
 created: 2026-09-03T16:02:23.431Z
+closedAt: 2026-09-23T20:35:05.024Z
 ---
 
 Spec: graph-cache

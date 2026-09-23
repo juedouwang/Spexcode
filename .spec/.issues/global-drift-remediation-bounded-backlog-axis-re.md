@@ -1,9 +1,10 @@
 ---
 concern: global drift remediation: bounded backlog, axis repair, and decision-gated behavior changes
 by: fbb76f84-7a73-4262-81d6-9028f5eb7c4e
-status: open
+status: landed
 nodes: eval-core, eval-proactive, spec-lint
 created: 2026-08-10T04:26:49.756Z
+closedAt: 2026-09-23T20:33:45.117Z
 ---
 
 Spec: eval-core, eval-proactive, spec-lint

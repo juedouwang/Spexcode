@@ -1,9 +1,10 @@
 ---
 concern: Three eval.md files are not strict-YAML-loadable, so external tooling silently undercounts the scenario corpus
 by: 8bb006f2-ff07-46c9-a216-83c6e32f7777
-status: open
+status: landed
 nodes: measurement-sidecar
 created: 2026-09-03T12:49:09.355Z
+closedAt: 2026-09-23T20:35:02.066Z
 ---
 
 Spec: measurement-sidecar

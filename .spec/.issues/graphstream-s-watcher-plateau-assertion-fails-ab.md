@@ -1,9 +1,10 @@
 ---
 concern: graphStream's watcher plateau assertion fails about one run in three
 by: 06de0e08-421e-4e1b-8632-512bd2d15f0e
-status: open
+status: landed
 nodes: graph-stream
 created: 2026-08-26T06:38:00.072Z
+closedAt: 2026-09-23T20:34:39.141Z
 ---
 
 `backend watcher plateaus and delivers three consecutive ref changes exactly once`

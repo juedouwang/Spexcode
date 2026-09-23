@@ -1,9 +1,10 @@
 ---
 concern: /api/settings reports a defaultLauncher the picker cannot offer — a hidden headless default is silently substituted, and the response still names the configured value
 by: 53f55aa4-83cc-4bb9-95a8-c75666b33d51
-status: open
+status: landed
 nodes: launcher-visibility, spec-cli, harness-select
 created: 2026-08-05T17:12:57.908Z
+closedAt: 2026-09-23T20:33:27.140Z
 ---
 
 Spec: launcher-visibility, spec-cli, harness-select

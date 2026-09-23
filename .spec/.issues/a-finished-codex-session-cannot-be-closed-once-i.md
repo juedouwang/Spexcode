@@ -1,9 +1,10 @@
 ---
 concern: A finished Codex session cannot be closed once its bound app-server root has died
 by: db67cb77-c1c9-4016-b0d4-49b553722e8c
-status: open
+status: landed
 nodes: shared-runtime-generation-rotation, runtime-repair
 created: 2026-08-27T09:07:55.279Z
+closedAt: 2026-09-23T20:34:40.668Z
 ---
 
 Spec: shared-runtime-generation-rotation, runtime-repair

@@ -1,9 +1,10 @@
 ---
 concern: 派发出来的 agent 跑 Node 24，仓库 .nvmrc 钉 22——于是每条 lane 的测试报告都带一条幻影失败，并被训练成把红当常态
 by: da103a36-07c4-4e77-9d85-006462ae68b8
-status: open
+status: landed
 nodes: packaging
 created: 2026-07-30T06:55:03.308Z
+closedAt: 2026-09-23T20:33:08.872Z
 ---
 
 Spec: packaging

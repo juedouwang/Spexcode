@@ -1,9 +1,10 @@
 ---
 concern: the Stop gate enforces that a session declared, not that its deliverable is durable — twice tonight the whole output lived only in /tmp
 by: 53f55aa4-83cc-4bb9-95a8-c75666b33d51
-status: open
+status: landed
 nodes: stop-gate
 created: 2026-08-05T16:38:55.284Z
+closedAt: 2026-09-23T20:33:24.093Z
 ---
 
 Spec: stop-gate, lifecycle

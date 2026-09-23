@@ -1,9 +1,10 @@
 ---
 concern: test-home-isolation's proof axis is a one-level glob, so a test minting session-record dirs in the real store reads as delta zero
 by: 2c787e87-a0ad-4cae-b1db-aa2f1f922f19
-status: open
+status: landed
 nodes: test-home-isolation
 created: 2026-08-05T19:38:34.355Z
+closedAt: 2026-09-23T20:33:36.259Z
 ---
 
 Spec: test-home-isolation

@@ -1,9 +1,10 @@
 ---
 concern: stagedFiles() is blind under 'git commit -a' and 'commit --only' — the env-strip hides the real index
 by: abe9f2bd-3e85-4083-a152-0d89f267521b
-status: open
+status: landed
 nodes: spec-lint
 created: 2026-07-25T08:14:10.773Z
+closedAt: 2026-09-23T20:32:56.755Z
 ---
 
 Verified empirically, found while investigating an unrelated anchor-drift question.

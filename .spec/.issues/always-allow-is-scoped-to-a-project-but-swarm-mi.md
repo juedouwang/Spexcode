@@ -1,8 +1,9 @@
 ---
 concern: always-allow is scoped to a project, but swarm mints a new project per worker, so the approval never covers them
 by: 644c22c2-e6db-427f-aa24-3a2d883c0336
-status: open
+status: landed
 created: 2026-08-15T05:04:43.745Z
+closedAt: 2026-09-23T20:34:20.035Z
 ---
 
 「Always allow in this project」按项目记住许可，而 swarm 给每个 isolated worker 现造一个新项目。

@@ -1,9 +1,10 @@
 ---
 concern: graph-changed 在一次 commit 轮次里可发两次，测试的等值断言因此在超发时失败
 by: ded4b563-50b9-4146-b860-e98e0d073700
-status: open
+status: landed
 nodes: graph-stream
 created: 2026-08-22T04:54:01.830Z
+closedAt: 2026-09-23T20:34:27.541Z
 ---
 
 # 待提 issue（需从主检出运行 `spex issue open`，worktree 被守卫拒绝）

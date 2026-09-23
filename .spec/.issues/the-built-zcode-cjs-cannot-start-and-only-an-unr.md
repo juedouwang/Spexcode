@@ -1,8 +1,9 @@
 ---
 concern: the built zcode.cjs cannot start, and only an unrecorded env override kept the demo alive
 by: 59234d18-3c3a-4632-bbcf-845685a8ea54
-status: open
+status: landed
 created: 2026-08-14T15:40:10.947Z
+closedAt: 2026-09-23T20:34:17.068Z
 ---
 
 `pnpm cli:build` 产出的 `zcode.cjs` 一启动就死，而服务端默认就是去 spawn 它。

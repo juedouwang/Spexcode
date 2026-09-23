@@ -1,8 +1,9 @@
 ---
 concern: an approval request says neither why it was raised nor what approving it promises
 by: 644c22c2-e6db-427f-aa24-3a2d883c0336
-status: open
+status: landed
 created: 2026-08-15T05:06:08.281Z
+closedAt: 2026-09-23T20:34:21.484Z
 ---
 
 一个审批请求既说不出**自己为什么被提出**，也说不出**批准下去等于承诺了什么**。两件事都在判定侧算过了，

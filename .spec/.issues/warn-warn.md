@@ -1,9 +1,10 @@
 ---
 concern: 低精度 warn 通道会被整体无视：warn 疲劳的量化与治理
 by: 28dc443a-d846-4abd-8ead-9422f0ead3f9
-status: open
+status: landed
 nodes: code-anchor, drift-replay-bench
 created: 2026-07-15T08:09:59.184Z
+closedAt: 2026-09-23T20:32:37.483Z
 ---
 
 ## 命题

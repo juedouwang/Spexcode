@@ -1,9 +1,10 @@
 ---
 concern: zcode-harness declares app-server observation and child-lifecycle contracts that neither its code axis nor its sole materialization scenario can prove
 by: fbb76f84-7a73-4262-81d6-9028f5eb7c4e
-status: open
+status: landed
 nodes: zcode-harness
 created: 2026-08-10T05:37:58.810Z
+closedAt: 2026-09-23T20:33:46.551Z
 ---
 
 Spec: zcode-harness

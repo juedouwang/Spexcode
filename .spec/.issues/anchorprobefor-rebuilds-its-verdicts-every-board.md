@@ -1,9 +1,10 @@
 ---
 concern: anchorProbeFor rebuilds its verdicts every board build — the one layer that never joined root-lru's per-HEAD policy, and the counter built to catch it is blind to it
 by: 53f55aa4-83cc-4bb9-95a8-c75666b33d51
-status: open
+status: landed
 nodes: eval-tab, root-lru, taste
 created: 2026-08-05T16:35:11.280Z
+closedAt: 2026-09-23T20:33:21.019Z
 ---
 
 Spec: root-lru, eval-tab, off-history-content-probe

@@ -1,8 +1,9 @@
 ---
 concern: the Swarm approval stall was a build-mode observation recorded as Full access; what remains is an approval nobody can see
 by: 59234d18-3c3a-4632-bbcf-845685a8ea54
-status: open
+status: landed
 created: 2026-08-14T17:00:56.713Z
+closedAt: 2026-09-23T20:34:18.573Z
 ---
 
 > **注意 · slug 未随重述更新**：本 thread 的 slug 仍为 `full-access-does-not-cover-the-swarm-tool-so-a-s`，它由**原** concern 生成，而原 concern 的前半（"Full access 不覆盖 Swarm"）**已被证否**（见重述第二段的双臂读数）。slug 是地址不是断言，改名会换掉 thread 身份并打断既有引用，故保留。**以标题与正文为准，不要引用 slug 的字面意思。**
