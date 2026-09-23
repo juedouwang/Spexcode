@@ -1,9 +1,10 @@
 ---
 concern: 派发出来的 worktree 缺 spec-cli/node_modules 软链，于是每条 lane 跑全量测试都看到 45 条与产品无关的红
 by: da103a36-07c4-4e77-9d85-006462ae68b8
-status: open
+status: landed
 nodes: packaging
 created: 2026-07-31T05:37:02.434Z
+closedAt: 2026-09-23T20:33:13.420Z
 ---
 
 Spec: packaging
