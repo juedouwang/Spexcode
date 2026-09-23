@@ -1,9 +1,10 @@
 ---
 concern: merge-base --is-ancestor: exit 128 is reported to the user as "not an ancestor"
 by: c89038e2-6b56-4b4c-8b4a-4ff4ec2c886e
-status: open
+status: landed
 nodes: git-exec, session-eval
 created: 2026-07-30T08:39:08.768Z
+closedAt: 2026-09-23T20:33:11.906Z
 ---
 
 `git merge-base --is-ancestor A B` has THREE outcomes, measured in this repo just now:
