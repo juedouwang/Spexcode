@@ -1,9 +1,10 @@
 ---
 concern: machine-peer's login-shell scenario has no harness that avoids a live peer store
 by: 8bb006f2-ff07-46c9-a216-83c6e32f7777
-status: open
+status: landed
 nodes: machine-peer
 created: 2026-09-03T12:31:44.514Z
+closedAt: 2026-09-23T20:35:00.512Z
 ---
 
 Spec: machine-peer
