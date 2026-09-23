@@ -1,9 +1,10 @@
 ---
 concern: The .spec config move broke 16 spec-cli tests on main and the suite hang hid it
 by: 8bb006f2-ff07-46c9-a216-83c6e32f7777
-status: open
+status: landed
 nodes: portable-layout, spex-uninstall
 created: 2026-09-03T16:19:47.011Z
+closedAt: 2026-09-23T20:35:06.598Z
 ---
 
 The `.spec/` config move landed on main with fixtures and a help assertion it never updated, and the
