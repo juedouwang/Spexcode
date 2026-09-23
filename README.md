@@ -36,25 +36,16 @@ That line is the whole binding. Versions, drift and history are computed from gi
 
 You can try SpexCode from Claude Code or Codex before installing the CLI. The **atlas** plugin reads a repository, writes an initial spec tree, checks its diagrams and hands back one page you can open.
 
-**Claude Code**
-
 ```sh
+# Claude Code
 claude plugin marketplace add shuxueshuxue/spexcode-plugins
 claude plugin install atlas@spexcode
-```
-
-**Codex**
-
-```sh
+# Codex
 codex plugin marketplace add shuxueshuxue/spexcode-plugins
 codex plugin add atlas@spexcode
 ```
 
-Then, inside any repository:
-
-```text
-Draw the spec atlas of this repository, and give me the page I can open.
-```
+Then, inside any repository, run `/atlas`.
 
 The plugin uses `spex init --pure` for the first adoption: plain `.spec/` files in git, no hooks and no agent configuration. You can add the session layer later with the CLI below.
 
@@ -62,17 +53,17 @@ The plugin uses `spex init --pure` for the first adoption: plain `.spec/` files 
 
 More repositories drawn this way: [flatcode.spexcode.net](https://flatcode.spexcode.net/). Diagrams are rendered by [archify](https://github.com/tt-a1i/archify) (MIT).
 
-## A changed function becomes a review item
+## Computable spec drift
 
-A later commit changes lines inside `verifyWebhook`. The test suite can still be green. SpexCode turns the commit into a named item for review:
+A spec's version is the commit that last touched `spec.md`. The window starts at the previous spec version. For every later commit, Git supplies the lines that commit changed, and SpexCode intersects them with the anchored unit's line range as it existed in that commit.
 
 <img src="docs/readme/term-spec-lint.svg" alt="spex spec lint reports anchor-drift on src/ingest/webhookVerifier.ts#verifyWebhook since spec webhook-security v3." width="900">
 
-A change elsewhere in the file is advisory. A change inside `verifyWebhook` is blocking. SpexCode is not deciding whether the new verifier is better; it makes the exact function and commit impossible to lose in the review queue.
+An intersection is `anchor-drift`: an error, and with the hooks installed the candidate commit is rejected. A change elsewhere in the same file is only a drift warning. The result is a deterministic computation.
 
 <img src="docs/readme/drift-history.svg" alt="Commit cbe53ee changes line 6 of webhookVerifier.ts, inside verifyWebhook (lines 5 to 13), after spec webhook-security v3; the overlap is anchor-drift." width="900">
 
-The spec's last version opens the window. Every later commit is checked against the lines of the anchored function as they were at that commit. Any overlap is an error until the spec moves or someone signs off.
+Everything comes from Git; SpexCode stores no drift data. There are two ways to close the window: update the spec with the code, so the new spec version closes it, or record that the contract still holds with a `Spec-OK` trailer or `spex spec ack`.
 
 ```sh
 spex spec lint
@@ -174,7 +165,6 @@ Each project has a backend; one dashboard serves all projects on the machine. Sp
 
 <img src="docs/readme/layers.svg" alt="Three layers: L0 the spec-code graph in git, L1 agent sessions in isolated worktrees on top of it, L2 the dashboard reading L1." width="900">
 
-SpexCode does not supply a coding model or decide whether a change is correct. It records intent, measures code movement against that intent, and gives the resulting work a place to be reviewed.
 
 [Setup guide](https://spexcode.net/getting-started/) · [Working with agents](https://spexcode.net/working-with-agents/) · [Contributing](docs/CONTRIBUTING.md)
 
