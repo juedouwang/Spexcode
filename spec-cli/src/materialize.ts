@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { loadSystemConfig, loadSkillConfig, loadAgentConfig, loadConfig, configPath } from '@spexcode/spec-core'
 import { compileManifest } from './hooks.js'
-import { writeManagedBlock, removeManagedBlock, writeManagedJsonHooks, removeManagedJsonHooks, sharedShimHasHostContent, isGeneratedArtifact, GENERATED_MARK, HARNESSES, type HarnessArtifacts } from './harness.js'
+import { writeManagedBlock, removeManagedBlock, unappendManagedBlock, writeManagedJsonHooks, removeManagedJsonHooks, sharedShimHasHostContent, isGeneratedArtifact, GENERATED_MARK, HARNESSES, type HarnessArtifacts } from './harness.js'
 import { git, gitBinary } from '@spexcode/spec-core'
 import { runtimeRoot, treeSlotDir, mainCheckout, readConfig } from '@spexcode/spec-core'
 import { resolveHarnessTargets, partitionHarnesses } from './harness-select.js'
@@ -200,6 +200,9 @@ export function stripSpexcodeBlock(text: string, comment: readonly [string, stri
   const sentinel = managedBlockPattern(comment)
   const m = sentinel.exec(text)
   if (!m) return text
+  const [open, close] = comment
+  const trailing = unappendManagedBlock(text, `${open}spexcode:start${close}`, `${open}spexcode:end${close}`)
+  if (trailing !== null) return trailing
   // mirror removeManagedBlock exactly: our block + its surrounding blanks collapse to one '\n', and only a
   // block sitting at the TOP of the file drops the leading newline (a host file beginning with its own
   // blank lines keeps them — clean(smudge(x)) == x).
