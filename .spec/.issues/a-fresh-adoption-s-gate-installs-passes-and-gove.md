@@ -1,9 +1,10 @@
 ---
 concern: a fresh adoption's gate installs, passes, and governs the empty set — governedRoots defaults to SpexCode's OWN package dirs
 by: 53f55aa4-83cc-4bb9-95a8-c75666b33d51
-status: open
+status: landed
 nodes: spec-lint, spex-init, adopt-nonweb-ergonomics, taste
 created: 2026-08-05T16:56:48.501Z
+closedAt: 2026-09-23T20:33:25.648Z
 ---
 
 Spec: spec-lint, spex-init, adopt-nonweb-ergonomics
