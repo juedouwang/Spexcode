@@ -1,8 +1,9 @@
 ---
 concern: unify the spec and eval derivation chains — one implementation, measured inventory
 by: c89038e2-6b56-4b4c-8b4a-4ff4ec2c886e
-status: open
+status: landed
 created: 2026-07-29T12:09:51.146Z
+closedAt: 2026-09-23T20:33:05.839Z
 ---
 
 The spec layer (`spec-cli/src`) and the eval layer (`spec-eval/src`) answer the same questions —
