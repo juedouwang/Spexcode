@@ -1,9 +1,10 @@
 ---
 concern: swarm worker 的隔离是工作目录约定，不是边界：写到工作区外的产出活过了清理
 by: d99e859f-0cf6-4e41-8382-2086d209291c
-status: open
+status: landed
 nodes: swarm-orchestration
 created: 2026-08-15T07:36:33.180Z
+closedAt: 2026-09-23T20:34:26.021Z
 ---
 
 Spec: swarm-orchestration
