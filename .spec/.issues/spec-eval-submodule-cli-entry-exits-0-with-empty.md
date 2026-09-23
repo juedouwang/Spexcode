@@ -1,9 +1,10 @@
 ---
 concern: spec-eval submodule CLI entry exits 0 with empty stdout and stderr on an unhandled verb
 by: 8bb006f2-ff07-46c9-a216-83c6e32f7777
-status: open
+status: landed
 nodes: evidence-get
 created: 2026-09-03T13:22:19.526Z
+closedAt: 2026-09-23T20:35:03.563Z
 ---
 
 Spec: evidence-get, evidence-put
