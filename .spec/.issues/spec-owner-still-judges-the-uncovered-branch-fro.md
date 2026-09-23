@@ -1,9 +1,10 @@
 ---
 concern: spec owner still judges the uncovered branch from the spec axis alone — the two-axis rule landed on one of its two branches
 by: 0edd38cf-8197-44c6-876d-b63410c7ee4f
-status: open
+status: landed
 nodes: cli-surface, governed-related
 created: 2026-08-07T13:37:41.180Z
+closedAt: 2026-09-23T20:33:43.643Z
 ---
 
 `582567d5f` wrote the rule generally — a report about what tracks a file may not be spoken from one of
