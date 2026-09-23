@@ -11,7 +11,7 @@ No other hue appears anywhere in the system.
 
 | file | what it is |
 | --- | --- |
-| `../banner.png` | the README header, 1536×656 (21:9). GitHub shows it at 720px; the seam sits at the exact centre so it survives both README themes without a `<picture>` switch. |
+| `../banner.png` | the README header, 1536×490 (about 3.1:1). GitHub shows it at 720px; the seam sits at the exact centre so it survives both README themes without a `<picture>` switch. |
 | `social.png` | GitHub social preview, 1280×640 (2:1 crop of the 16:9 card). |
 | `wordmark.png` / `wordmark-notag.png` | the lockup on transparency for light surfaces (with / without the tagline). |
 | `wordmark-dark.png` / `wordmark-notag-dark.png` | the same lockups with the brush and tagline turned cream for dark surfaces; the cyan is unchanged. |
