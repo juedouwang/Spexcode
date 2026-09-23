@@ -7,6 +7,7 @@ desc: .spec on main is canonical; worktrees hold session-attributed proposals.
 code:
   - packages/spec-core/src/specs.ts#loadSpecs
 related:
+  - spec-cli/src/frontmatter.test.ts
   - packages/spec-core/src/git.ts
   - spec-cli/src/git.test.ts
 ---
@@ -39,6 +40,11 @@ asked of the node it was answering about ([[context-dock]] retired the surface t
 `bodyMentions` parser stays where it is, with the one consumer that must actually resolve a name: the
 mention lint rule ([[spec-lint]]), which rejects a `[[id]]` naming nothing. The frontmatter relations are a
 different axis and stay one — `code:`/`related:` claim FILE paths, so neither can name a node.
+
+The frontmatter is read as the YAML every other tool sees in it: a scalar or list item wrapped in matching
+quotes (`"…"` with its `\"` and `\\` escapes, `'…'` with `''`) is the string inside them. Agents quote any value
+that carries `: `, and a title shown as `"Request pipeline"` would be a second reading of the same file. A lone
+or inner quote stays part of a plain value.
 
 An explicit local commit candidate is the one exception to the filesystem content source: lint reads raw
 specs and governed current content from that candidate's immutable tree and derives both indices at the

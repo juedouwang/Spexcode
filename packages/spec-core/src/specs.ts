@@ -12,6 +12,18 @@ const SPEC_DIR = join(ROOT, '.spec')
 type FmValue = string | string[]
 type Raw = { id: string; parent: string | null; relPath: string; fm: Record<string, FmValue>; body: string }
 
+// A value wrapped in matching YAML quotes is that string: "…" takes \" and \\ escapes, '…' takes ''. Anything
+// else — a lone or inner quote included — is kept verbatim, as the plain-scalar reading always did.
+function yamlScalar(raw: string): string {
+  const v = raw.trim()
+  // the closing quote counts only when an even number of backslashes precede it
+  if (v.length >= 2 && v.startsWith('"') && /(^|[^\\])(\\\\)*"$/.test(v.slice(1))) {
+    return v.slice(1, -1).replace(/\\(["\\])/g, '$1')
+  }
+  if (v.length >= 2 && v.startsWith("'") && v.endsWith("'")) return v.slice(1, -1).replace(/''/g, "'")
+  return v
+}
+
 // line-based frontmatter: scalars are `key: value`; an empty key followed by `- item` lines is a list (e.g. `code:`).
 export function parseFrontmatter(src: string) {
   const fm: Record<string, FmValue> = {}
@@ -23,11 +35,11 @@ export function parseFrontmatter(src: string) {
       const item = line.match(/^\s*-\s+(.*)$/)
       if (item && key) {
         if (!Array.isArray(fm[key])) fm[key] = fm[key] ? [fm[key] as string] : []
-        ;(fm[key] as string[]).push(item[1].trim())
+        ;(fm[key] as string[]).push(yamlScalar(item[1]))
         continue
       }
       const i = line.indexOf(':')
-      if (i > 0) { key = line.slice(0, i).trim(); fm[key] = line.slice(i + 1).trim() }
+      if (i > 0) { key = line.slice(0, i).trim(); fm[key] = yamlScalar(line.slice(i + 1)) }
     }
     body = m[2]
   }
