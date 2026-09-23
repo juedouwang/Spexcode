@@ -18,6 +18,7 @@ import { resolveProjectIdentity } from '@spexcode/spec-core'
 import { startResourceMonitor } from './host-resources.js'
 import { reapOrphanBackendInstances, registerBackendInstance, unregisterBackendInstance } from './runtime-ownership.js'
 import { sessionIdentityEnvVars } from './harness.js'
+import { loopbackHttpAgent } from './loopback-transport.js'
 import { serverEntrypointArgs } from './tsx-bin.js'
 import { anchorServiceCwd, serviceCwdLoss } from './service-cwd.js'
 
@@ -119,7 +120,9 @@ function waitHealthy(port: number, tries = 150): Promise<boolean> {
   return new Promise((resolve) => {
     const retry = (left: number) => { if (left <= 1) resolve(false); else setTimeout(() => attempt(left - 1), 100) }
     const attempt = (left: number) => {
-      const req = http.get({ host: '127.0.0.1', port, path: '/health', timeout: 1000 }, (r) => {
+      // loopbackHttpAgent: the child's health probe must stay direct under environment proxying — a
+      // proxied probe never reaches the child, so every reload would look unhealthy ([[loopback-transport]]).
+      const req = http.get({ host: '127.0.0.1', port, path: '/health', timeout: 1000, agent: loopbackHttpAgent }, (r) => {
         r.resume()
         if (r.statusCode === 200) resolve(true); else retry(left)
       })

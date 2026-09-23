@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { apiBase } from './sessions.js'
 import { blobPath, putBlob, readBlobByHash } from '@spexcode/spec-core'
+import { fetchBypassingLoopbackProxy } from './loopback-transport.js'
 
 export async function runEvidence(args: string[]): Promise<number> {
   if (args[0] === 'put' && args[1] !== undefined) return blobPut(args[1])
@@ -35,7 +36,7 @@ export async function blobGet(args: string[]): Promise<number> {
   const url = `${await apiBase()}/api/evidence/${hash}`
   let backendMiss: string
   try {
-    const response = await fetch(url)
+    const response = await fetchBypassingLoopbackProxy(url)
     if (response.ok) return emitBlob(Buffer.from(await response.arrayBuffer()), out)
     backendMiss = `HTTP ${response.status}`
   } catch (e) {

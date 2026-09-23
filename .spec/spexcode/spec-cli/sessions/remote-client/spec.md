@@ -140,6 +140,10 @@ throws a clear `no backend reachable at <url>` with a non-zero exit. A Cache ver
 source it read, on stderr, every time. A Remote-transport verb fails loud. What no verb ever does is answer
 from a different source while claiming the one it was asked for.
 
+**A loopback hop never rides the environment proxy.** Every request to the resolved base goes direct when
+that base is loopback, so `ECONNREFUSED` keeps meaning what the owner-proof needs it to mean; a base on
+another machine keeps the user's proxy environment ([[loopback-transport]]).
+
 For text `send`, a reachable backend's non-2xx `DispatchResult {ok:false,error}` is also a final owner answer:
 the client preserves that exact reason for the CLI rather than recasting it as a transport failure or attempting
 a local fallback. This includes the adapter-owned stranded-transport refusal; only the backend can know whether

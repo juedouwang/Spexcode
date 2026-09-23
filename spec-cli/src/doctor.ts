@@ -10,6 +10,7 @@ import { GENERATED_MARK } from './harness.js'
 import { trackedSourceFiles } from './source-files.js'
 import { gitBinary } from '@spexcode/spec-core'
 import { collectHostFacts, formatHostFacts } from './host-facts.js'
+import { fetchBypassingLoopbackProxy } from './loopback-transport.js'
 
 // this file lives at <pkgRoot>/src/self.ts, so `..` is the package root — the same derivation init.ts/
 // materialize.ts use (never a hardcoded repo path), so the git-hook template lookup survives a relocated install.
@@ -351,7 +352,7 @@ async function backendReachable(): Promise<{ base: string; up: boolean }> {
   try { base = await (await import('./sessions.js')).apiBase() } catch { /* keep default */ }
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), 800)
-  try { return { base, up: (await fetch(`${base}/api/sessions`, { signal: ctrl.signal })).ok } }
+  try { return { base, up: (await fetchBypassingLoopbackProxy(`${base}/api/sessions`, { signal: ctrl.signal })).ok } }
   catch { return { base, up: false } }
   finally { clearTimeout(t) }
 }

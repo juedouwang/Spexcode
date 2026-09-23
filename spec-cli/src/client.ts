@@ -11,6 +11,7 @@ import { resolveSession, type Resolved } from './session-selectors.js'
 import { fromRaw } from './session-record.js'
 import { resolveMachinePeer } from './machine-peer.js'
 import { PEER_CREDENTIAL_HEADER } from './gateway-auth.js'
+import { fetchBypassingLoopbackProxy } from './loopback-transport.js'
 
 export class BackendError extends Error {
   constructor(message: string, readonly status?: number, readonly transport?: unknown) {
@@ -59,7 +60,7 @@ function withCookie(init: RequestInit | undefined, cookie: string): RequestInit 
 async function loginGateway(base: string, password: string): Promise<string> {
   let response: Response
   try {
-    response = await fetch(`${base}/login`, {
+    response = await fetchBypassingLoopbackProxy(`${base}/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ password }).toString(),
@@ -84,7 +85,7 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   prepareTls(base)
   const request = async (cookie?: string): Promise<Response> => {
     try {
-      return await fetch(`${base}${path}`, cookie ? withCookie(init, cookie) : init)
+      return await fetchBypassingLoopbackProxy(`${base}${path}`, cookie ? withCookie(init, cookie) : init)
     } catch (error) {
       throw new BackendError(`no backend reachable at ${base} — run \`spex serve\` in the project, or name one with --api <url> (${(error as Error).message})`, undefined, error)
     }
@@ -347,7 +348,7 @@ async function peerFetch(sshAddress: string, sessionId: string, path: string, in
   }
   const headers = { ...(init?.headers as Record<string, string> | undefined), [PEER_CREDENTIAL_HEADER]: peer.remoteGatewayCredential }
   try {
-    return await fetch(`http://127.0.0.1:${peer.gatewayPort}/s/${seg(sessionId)}${path}`, { ...init, headers })
+    return await fetchBypassingLoopbackProxy(`http://127.0.0.1:${peer.gatewayPort}/s/${seg(sessionId)}${path}`, { ...init, headers })
   } catch (error) {
     throw new BackendError(`communication tunnel for SSH address ${JSON.stringify(sshAddress)} is unreachable — run \`spex peer connect ${sshAddress}\` to repair it (${(error as Error).message})`, undefined, error)
   }

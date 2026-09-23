@@ -15,6 +15,7 @@ import { mkdirSync, writeFileSync, readFileSync, renameSync, rmSync, readdirSync
 import { homedir } from 'node:os'
 import { dirname, join, basename, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { fetchBypassingLoopbackProxy } from './loopback-transport.js'
 import { spexcodeHome, encodeProject, readJsonConfig, templateConfigPath } from '@spexcode/spec-core'
 import { git } from '@spexcode/spec-core'
 import { serveStatic, resolveDistDir } from './gateway.js'
@@ -241,7 +242,7 @@ async function fetchInstance(url: string): Promise<LiveInstance | null> {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), 900)
   try {
-    const r = await fetch(`${url}/api/instance`, { signal: ctrl.signal })
+    const r = await fetchBypassingLoopbackProxy(`${url}/api/instance`, { signal: ctrl.signal })
     if (!r.ok) return null
     return await r.json() as LiveInstance
   } catch { return null }
