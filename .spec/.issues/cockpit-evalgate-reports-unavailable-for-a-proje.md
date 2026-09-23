@@ -1,9 +1,10 @@
 ---
 concern: cockpit evalGate reports 'unavailable' for a projection nobody built yet, and conflates that with 'nothing measured'
 by: 9be33950-7166-40fd-8d62-5d3a3390cdf7
-status: open
+status: landed
 nodes: manager-cockpit, session-eval
 created: 2026-08-05T10:29:22.695Z
+closedAt: 2026-09-23T20:33:17.993Z
 ---
 
 `cockpit.ts`'s `evalGate` is a pure projection READ, and it must stay one — `buildSessionEvals()` calls
