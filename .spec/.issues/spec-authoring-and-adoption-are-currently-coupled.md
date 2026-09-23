@@ -1,8 +1,9 @@
 ---
 concern: Future simplification record — spec-node authoring and SpexCode adoption are currently coupled
 by: 16f68f90
-status: open
+status: landed
 created: 2026-08-11T00:00:00.000Z
+closedAt: 2026-09-23T20:33:48.093Z
 ---
 
 This is a durable fact record for a future simplification pass. It is not an implementation proposal.
