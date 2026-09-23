@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { createInterface } from 'node:readline/promises'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { scopeIds } from '@spexcode/archify/browser'
+import { FLATCODE_BANNER_SVG } from './flatcode-banner.js'
 import { HARNESSES, MISSING_DEFAULT_LAUNCHER_ERROR, defaultLauncher, harnessById, launcherList, resolveLauncher, type Harness } from './harness.js'
 import { ensureDashboardArtifact } from './dashboard-assets.js'
 
@@ -756,8 +757,9 @@ ${picture}        <div class="card-top">
     margin: 0 calc(50% - 50vw) 4rem; padding: 6rem max(1.5rem, calc((100vw - 68rem) / 2)); display: flex;
     align-items: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
   }
-  .hero-image { position: absolute; z-index: -2; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
-  .hero-shade { position: absolute; z-index: -1; inset: 0; background: rgba(4, 6, 7, .56); }
+  .hero-image { position: absolute; z-index: -2; inset: 0; }
+  .hero-image svg { display: block; width: 100%; height: 100%; }
+  .hero-shade { position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg, rgba(8, 9, 11, .9), rgba(8, 9, 11, .55) 38%, rgba(8, 9, 11, 0) 62%); }
   .hero-content { max-width: 38rem; }
   .eyebrow {
     font-size: .8125rem; color: var(--accent-soft); margin-bottom: 1.25rem;
@@ -767,7 +769,7 @@ ${picture}        <div class="card-top">
     font-weight: 620; margin: 0 0 1.25rem;
   }
   h1 em { font-style: normal; color: var(--accent-soft); white-space: nowrap; }
-  .lede { font-size: 1.125rem; color: #c0c5cc; margin: 0; max-width: 35rem; }
+  .lede { font-size: 1.125rem; color: #c0c5cc; margin: 0; max-width: 35rem; text-wrap: pretty; }
 
   section.onboarding { padding-bottom: 4.5rem; }
   .section-label { color: var(--accent-soft); font-family: var(--mono); font-size: .75rem; margin: 0 0 .6rem; }
@@ -849,8 +851,7 @@ ${picture}        <div class="card-top">
     nav { padding: 1rem 0; }
     nav a.ghost { padding: .4rem .55rem; }
     header.hero { min-height: 29rem; margin-bottom: 3rem; padding-top: 4rem; padding-bottom: 3rem; }
-    .hero-image { object-position: 66% center; }
-    .hero-shade { background: rgba(4, 6, 7, .66); }
+    .hero-shade { background: rgba(8, 9, 11, .72); }
     h1 { font-size: 2.625rem; }
     .lede { font-size: 1rem; }
     .setup-grid { grid-template-columns: 1fr; }
@@ -879,7 +880,7 @@ ${diagramCss}
 </div>
 
   <header class="hero">
-    <img class="hero-image" src="./flatcode-banner.webp" alt="代码库整理为规格图谱">
+    <div class="hero-image" aria-hidden="true">${FLATCODE_BANNER_SVG}</div>
     <div class="hero-shade"></div>
     <div class="hero-content">
       <div class="eyebrow">软件二向箔，基于 SpexCode</div>
@@ -1030,7 +1031,6 @@ export async function flatGallery(out: string, flatDirs: readonly string[], log:
   const rank = (entry: GalleryEntry) => (entry.lang.toLowerCase().startsWith('zh') ? 0 : entry.lang.toLowerCase() === 'en' ? 2 : 1)
   entries.sort((a, b) => rank(a) - rank(b) || a.slug.localeCompare(b.slug))
   receipts.sort((a, b) => a.slug.localeCompare(b.slug))
-  copyFileSync(join(PKG, 'src', 'flatcode-banner.webp'), join(target, 'flatcode-banner.webp'))
   writeFileSync(join(target, 'index.html'), galleryIndexHtml(entries, previews))
   // The manifest is what makes a publish auditable: it names every entry and hashes each flat's own release
   // manifest, so what landed on a host can be compared with what was built without trusting the transport.
