@@ -29,6 +29,13 @@ machine that built it. The agent choice keeps native keyboard and screen-reader 
 gallery's dark control styling, and the banner is encoded as a same-dimension, high-quality WebP so the hero
 does not make the first visit wait on an unnecessarily large download.
 
+**A card shows the flat's own picture.** Each card opens with one diagram the flat already published — the
+root's, else the first top-level node that has one — rendered inline with archify's stylesheet and scoped ids,
+and it links to that node, so the first thing a visitor sees of a repository is a real artifact of its tree,
+not a drawing of the product. The card counts the flat's diagrams beside its nodes and files, and
+`gallery.json` records that count per entry. A flat with no diagram keeps a text-only card. The footer credits
+archify, which renders every diagram on the host.
+
 ## The slug belongs to the source, and cannot leave the root
 
 A flat is served at the slug of the repository it READ, never at the name of the directory Flatcode wrote
