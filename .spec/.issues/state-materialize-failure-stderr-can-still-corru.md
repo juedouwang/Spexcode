@@ -1,9 +1,10 @@
 ---
 concern: [[state]] materialize failure stderr can still corrupt the governed session record
 by: 58195f32-61b8-4e69-9b91-b41fc2594501
-status: open
+status: landed
 nodes: state
 created: 2026-07-29T02:09:10.050Z
+closedAt: 2026-09-23T20:33:02.750Z
 ---
 
 A real concurrent public session-new produced a materialize failure containing a shell command with double quotes. The creation response was initially structured, but the failure-note update wrote the stderr into session.json without JSON escaping; the note line broke at "$0", the record became corrupt/unknown, public close could no longer prove ownership, and the already-started Codex leaf/thread survived until exact operator cleanup.
