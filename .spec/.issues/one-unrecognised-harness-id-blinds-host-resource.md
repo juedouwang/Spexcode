@@ -1,9 +1,10 @@
 ---
 concern: one unrecognised harness id blinds host resource monitoring for every owner, silently
 by: 2c787e87-a0ad-4cae-b1db-aa2f1f922f19
-status: open
+status: landed
 nodes: host-resource-budget, shared-runtime-generation-rotation, taste
 created: 2026-08-05T18:20:02.499Z
+closedAt: 2026-09-23T20:33:34.737Z
 ---
 
 Spec: host-resource-budget, shared-runtime-generation-rotation
