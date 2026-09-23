@@ -146,6 +146,16 @@ test('every package names only files that exist, and the ZCode skill points at t
     assert.match(body, /LANGUAGE THE PERSON ASKED IN/, `${name} says which language the tree is written in`)
   }
 
+  for (const [name, path] of Object.entries({
+    'claude-code': 'distribution/claude-code/atlas',
+    codex: 'distribution/codex/plugins/atlas',
+  })) {
+    const skill = readFileSync(join(root, path, 'skills/atlas/SKILL.md'), 'utf8')
+    assert.match(skill, /native skill slash commands.*\/atlas/, name + ' exposes the atlas skill as /atlas')
+    assert.equal(existsSync(join(root, path, 'commands/atlas.md')), false, name + ' has no duplicate command surface')
+    assert.equal(existsSync(join(root, path, 'prompts/atlas.md')), false, name + ' has no duplicate prompt surface')
+  }
+
   // The generator never touches `atlas.dwf.ts` — it is hand-written — so it drifted: while every SKILL.md
   // moved to the public registry and off the `@next` pin, the workflow script kept `-p spexcode@next` with no
   // registry, in the very arrays ZCode executes. An assertion that only reads the generated files cannot see
