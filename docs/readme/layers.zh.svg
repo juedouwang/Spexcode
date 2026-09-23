@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 312" role="img" aria-label="三层：L0 是 git 里的 spec–code 图，L1 是建在其上的隔离 worktree 里的 agent session，L2 是读取 L1 的 dashboard。">
+<style>
+svg{--fg:#1f2328;--mute:#6e7781;--rule:#d0d7de;--acc:#0e7c86}
+@media (prefers-color-scheme:dark){svg{--fg:#e6edf3;--mute:#8b949e;--rule:#30363d;--acc:#39c5cf}}
+text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;fill:var(--mute)}
+.fg{fill:var(--fg)} .acc{fill:var(--acc)} .bar{fill:var(--acc)}
+.rule{stroke:var(--rule);stroke-width:1}
+.hl{opacity:0;animation:lit 4.800000000000001s linear infinite}
+@keyframes lit{0%{opacity:0}6%{opacity:1}27%{opacity:1}33%{opacity:0}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.hl{animation:none} .L0 .hl{opacity:1}}
+</style>
+<g class="row L2">
+<text x="60" y="58" style="font-size:28px;font-weight:700">L2</text>
+<text x="60" y="82" style="font-size:13px">工作台</text>
+<g class="hl" style="animation-delay:3.2s"><rect x="40" y="34" width="3" height="54" rx="1.5" class="bar"/><text x="60" y="58" class="acc" style="font-size:28px;font-weight:700">L2</text><text x="60" y="82" class="acc" style="font-size:13px">工作台</text></g>
+<text x="190" y="54" class="fg" style="font-size:17px">一个 dashboard 看所有项目</text>
+<text x="190" y="82" xml:space="preserve">spex dashboard · 图谱、session、终端 · 每个视图一个 URL</text>
+<text x="900" y="54" text-anchor="end" style="font-size:13px">读取 L1</text>
+<line x1="60" y1="104" x2="900" y2="104" class="rule"/></g>
+<g class="row L1">
+<text x="60" y="154" style="font-size:28px;font-weight:700">L1</text>
+<text x="60" y="178" style="font-size:13px">Session</text>
+<g class="hl" style="animation-delay:1.6s"><rect x="40" y="130" width="3" height="54" rx="1.5" class="bar"/><text x="60" y="154" class="acc" style="font-size:28px;font-weight:700">L1</text><text x="60" y="178" class="acc" style="font-size:13px">Session</text></g>
+<text x="190" y="150" class="fg" style="font-size:17px">agent 在隔离的 worktree 里干活</text>
+<text x="190" y="178" xml:space="preserve">spex session new · 一个任务一个分支 · review → merge</text>
+<text x="900" y="150" text-anchor="end" style="font-size:13px">建在 L0 上</text>
+<line x1="60" y1="200" x2="900" y2="200" class="rule"/></g>
+<g class="row L0">
+<text x="60" y="250" style="font-size:28px;font-weight:700">L0</text>
+<text x="60" y="274" style="font-size:13px">Spec</text>
+<g class="hl" style="animation-delay:0.0s"><rect x="40" y="226" width="3" height="54" rx="1.5" class="bar"/><text x="60" y="250" class="acc" style="font-size:28px;font-weight:700">L0</text><text x="60" y="274" class="acc" style="font-size:13px">Spec</text></g>
+<text x="190" y="246" class="fg" style="font-size:17px">纯 git 里的 spec–code 图</text>
+<text x="190" y="274" xml:space="preserve">.spec/**/spec.md · code: 锚点 · spex spec lint</text>
+<text x="900" y="246" text-anchor="end" style="font-size:13px">单独可用，离线</text>
+<line x1="60" y1="296" x2="900" y2="296" class="rule"/></g>
+</svg>
