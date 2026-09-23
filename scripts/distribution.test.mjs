@@ -151,7 +151,6 @@ test('every package names only files that exist, and the ZCode skill points at t
     codex: 'distribution/codex/plugins/atlas',
   })) {
     const skill = readFileSync(join(root, path, 'skills/atlas/SKILL.md'), 'utf8')
-    assert.match(skill, /native skill slash commands.*\/atlas/, name + ' exposes the atlas skill as /atlas')
     assert.equal(existsSync(join(root, path, 'commands/atlas.md')), false, name + ' has no duplicate command surface')
     assert.equal(existsSync(join(root, path, 'prompts/atlas.md')), false, name + ' has no duplicate prompt surface')
   }

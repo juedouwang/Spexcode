@@ -55,7 +55,7 @@ More repositories drawn this way: [flatcode.spexcode.net](https://flatcode.spexc
 
 ## Computable spec drift
 
-A spec's version is the commit that last touched `spec.md`. The window starts at the previous spec version. For every later commit, Git supplies the lines that commit changed, and SpexCode intersects them with the anchored unit's line range as it existed in that commit.
+Each spec version is a commit that touched its `spec.md`; the window starts at the latest version. For every later commit, Git supplies the lines that commit changed, and SpexCode intersects them with the anchored unit's line range as it existed in that commit.
 
 <img src="docs/readme/term-spec-lint.svg" alt="spex spec lint reports anchor-drift on src/ingest/webhookVerifier.ts#verifyWebhook since spec webhook-security v3." width="900">
 
@@ -164,7 +164,6 @@ Each project has a backend; one dashboard serves all projects on the machine. Sp
 ## Three layers
 
 <img src="docs/readme/layers.svg" alt="Three layers: L0 the spec-code graph in git, L1 agent sessions in isolated worktrees on top of it, L2 the dashboard reading L1." width="900">
-
 
 [Setup guide](https://spexcode.net/getting-started/) · [Working with agents](https://spexcode.net/working-with-agents/) · [Contributing](docs/CONTRIBUTING.md)
 

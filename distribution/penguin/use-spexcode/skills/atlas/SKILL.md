@@ -9,8 +9,6 @@ description: Use when the user wants pictures of the spec tree — draw the atla
 
 This skill draws with SpexCode's command line and needs nothing installed or configured on this machine.
 
-On hosts with native skill slash commands, including Claude Code and Codex, enter `/atlas` to invoke this skill directly. No separate command or prompt file is needed.
-
 - Run SpexCode through npx: `npx -y --registry=https://registry.npmjs.org -p spexcode spex <command>` (Node 22 or newer). Wherever a step below says
   `spex …`, run it that way; a `spex` already on the PATH works the same.
 - A diagram draws one node of the repository's spec tree, the `.spec/` folder. If the repository has none,

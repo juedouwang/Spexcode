@@ -55,11 +55,11 @@ codex plugin add atlas@spexcode
 
 ## 可计算的 spec 漂移
 
-spec 的版本，就是最后一次碰过它 `spec.md` 的 commit。窗口从 spec 上一版开始；之后每个 commit，SpexCode 用 Git 给出的改动行，去和被锚定单元在那个 commit 时的行区间求交。
+spec 的每个版本就是一次碰过它 `spec.md` 的 commit，窗口从最新一版开始；之后每个 commit，SpexCode 用 Git 给出的改动行，去和被锚定单元在那个 commit 时的行区间求交。
 
 <img src="readme/term-spec-lint.svg" alt="spex spec lint 报出 src/ingest/webhookVerifier.ts#verifyWebhook 自 spec webhook-security v3 以来的 anchor-drift。" width="900">
 
-有交集就是 `anchor-drift`：这是错误，装了钩子时提交会被拦下。同一文件其它位置的改动只是 drift 提醒。这个结果是可计算的机制。
+有交集就是 `anchor-drift`：这是错误，装了钩子时提交会被拦下。同一文件其它位置的改动只是 drift 提醒。
 
 <img src="readme/drift-history.zh.svg" alt="spec webhook-security v3 之后，commit cbe53ee 改了 webhookVerifier.ts 第 6 行，落在 verifyWebhook（第 5–13 行）内，重叠即 anchor-drift。" width="900">
 
@@ -164,7 +164,6 @@ spex dashboard
 ## 三层
 
 <img src="readme/layers.zh.svg" alt="三层：L0 是 git 里的 spec–code 图，L1 是建在其上的隔离 worktree 里的 agent session，L2 是读取 L1 的 dashboard。" width="900">
-
 
 [上手指南](https://spexcode.net/getting-started/) · [和 agent 一起工作](https://spexcode.net/working-with-agents/) · [参与贡献](CONTRIBUTING.md)
 
