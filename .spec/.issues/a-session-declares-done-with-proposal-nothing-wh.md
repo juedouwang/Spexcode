@@ -1,9 +1,10 @@
 ---
 concern: a session declares done with proposal nothing while its commits sit unmerged on its branch
 by: 2c787e87-a0ad-4cae-b1db-aa2f1f922f19
-status: open
+status: landed
 nodes: stop-gate, session-fail
 created: 2026-08-05T18:02:13.912Z
+closedAt: 2026-09-23T20:33:33.218Z
 ---
 
 Spec: stop-gate, session-fail
