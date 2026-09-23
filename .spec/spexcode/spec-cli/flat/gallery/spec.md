@@ -5,6 +5,7 @@ hue: 165
 desc: Many flats on one static host at flatcode.spexcode.net/<owner>/<repo> — assembled by a command, published with a receipt, and serving nothing a static file server cannot.
 related:
   - spec-cli/src/flat.ts
+  - spec-cli/src/flatcode-banner.ts
   - spec-cli/src/flat.test.ts
 ---
 # gallery
@@ -23,11 +24,12 @@ The index is also the self-serve entry point. It shows the one-time `npm i -g sp
 visitor to choose the local agent that will run the conversion, and updates the displayed `spex flat new`
 command with that explicit launcher. It states that a repository URL is cloned and initialized before conversion,
 while a local repository is continued in place and receives only `.spec` work; it never tells a visitor to
-perform those internal steps by hand. A packaged bitmap banner depicts the repository-to-graph
-transformation and is copied beside `index.html`, so an assembled gallery has no asset dependency on the
-machine that built it. The agent choice keeps native keyboard and screen-reader behavior while using the
-gallery's dark control styling, and the banner is encoded as a same-dimension, high-quality WebP so the hero
-does not make the first visit wait on an unnecessarily large download.
+perform those internal steps by hand. The hero picture shows the repository-to-graph transformation: a stack of code sheets
+flattens onto a plane and becomes a spec graph. It is a vector drawing compiled into the CLI and inlined
+into `index.html`, so an assembled gallery has no asset dependency on the machine that built it and the
+published package cannot be missing it; the headline's side of it is left empty, and a left-to-right shade
+keeps the text legible without dimming the drawing. The agent choice keeps native keyboard and screen-reader
+behavior while using the gallery's dark control styling.
 
 **A card shows the flat's own picture.** Each card opens with one diagram the flat already published — the
 root's, else the first top-level node that has one — rendered inline with archify's stylesheet and scoped ids,
