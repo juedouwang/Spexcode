@@ -205,8 +205,8 @@ test('the gallery index escapes what it prints and links relatively', () => {
   // card prints the slug and the language names; the full source URL is deliberately NOT on this page (the
   // flat's own About panel carries provenance), and this asserts that staying true rather than assuming it.
   const html = galleryIndexHtml([
-    { slug: 'psf/requests', source: 'https://evil.test/"><script>alert(1)</script>', revision: 'abcdef0123456789', coverage: 100, governed: 21, nodes: 46, passed: true, languages: ['Python'], lang: 'zh' },
-    { slug: 'x/y', source: 'https://github.com/x/y', revision: 'deadbeefcafe', coverage: 62, governed: 80, nodes: 9, passed: false, languages: ['<img src=x onerror=1>'], lang: 'en' },
+    { slug: 'psf/requests', source: 'https://evil.test/"><script>alert(1)</script>', revision: 'abcdef0123456789', coverage: 100, governed: 21, nodes: 46, passed: true, languages: ['Python'], lang: 'zh', diagrams: 0 },
+    { slug: 'x/y', source: 'https://github.com/x/y', revision: 'deadbeefcafe', coverage: 62, governed: 80, nodes: 9, passed: false, languages: ['<img src=x onerror=1>'], lang: 'en', diagrams: 0 },
   ])
   assert.ok(html.includes('href="./psf/requests/"'), 'entry link must be relative — the gallery itself may sit under a prefix')
   assert.ok(!html.includes('<script>alert(1)</script>') && !html.includes('evil.test'), 'the source string reached the page')
@@ -218,6 +218,21 @@ test('the gallery index escapes what it prints and links relatively', () => {
   // An unknown language gets the neutral dot rather than an invented colour.
   assert.ok(html.includes('#3178c6') === false && html.includes('#3572a5'), 'known languages carry their own colour')
   assert.ok(html.includes('#6b7280'), 'an unlisted language falls back to neutral')
+})
+
+test('a gallery card opens on the flat\'s own diagram and links to that node', () => {
+  const svg = '<svg viewBox="0 0 10 10"><defs><marker id="arrowhead"/></defs><path marker-end="url(#arrowhead)"/></svg>'
+  const html = galleryIndexHtml([
+    { slug: 'sindresorhus/ky', source: 'https://github.com/sindresorhus/ky', revision: 'abcdef0123456789', coverage: 100, governed: 51, nodes: 53, passed: true, languages: ['TypeScript'], lang: 'en', diagrams: 13 },
+    { slug: 'x/plain', source: 'https://github.com/x/plain', revision: 'deadbeefcafe', coverage: 100, governed: 3, nodes: 4, passed: true, languages: [], lang: 'en', diagrams: 0 },
+  ], { 'sindresorhus/ky': { node: 'request-pipeline', title: 'Request pipeline', svg } })
+  assert.match(html, /href="\.\/sindresorhus\/ky\/#\/spec\/request-pipeline"/, 'the card links to the pictured node')
+  assert.match(html, /class="preview archify" data-theme="dark"/, 'the picture sits in an archify box')
+  assert.ok(html.includes('id="p0-arrowhead"') && html.includes('url(#p0-arrowhead)'), 'each inline diagram scopes its ids')
+  assert.match(html, /<b>13<\/b> 张图/, 'the card counts the flat\'s diagrams')
+  assert.match(html, /href="\.\/x\/plain\/"/, 'a flat without a diagram keeps its plain link')
+  assert.match(html, /\.archify \{/, 'archify\'s stylesheet is inlined')
+  assert.match(html, /github\.com\/tt-a1i\/archify/, 'the footer credits archify')
 })
 
 test('the gallery gives a fresh visitor the install, agent, and clone-init path', () => {

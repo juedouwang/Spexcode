@@ -184,6 +184,35 @@ test('legacy .gitignore managed block is forgotten by the next materialize (eras
   assert.ok(!readFileSync(join(proj, '.git', 'info', 'exclude'), 'utf8').includes('.claude/settings.json'), 'tree-local entries no longer leak through the common exclude')
 })
 
+// [[content-filter]] — a real repository's tracked text often ends with no newline (vConsole's .gitignore) or with a
+// blank line. Adoption must leave those bytes exact in the index view and after uninstall: a phantom
+// `M .gitignore` reads as a change nobody made, and flat rejects the round as a write outside .spec.
+test('content-filter keeps a tracked file\'s exact tail: no final newline or a trailing blank line', { skip: !gitAvailable() && 'git not available' }, () => {
+  for (const [label, gitignore, claude] of [
+    ['no final newline', 'node_modules\n._*', '# notes\nkeep me'],
+    ['trailing blank line', 'node_modules\n\n', '# notes\nkeep me\n\n'],
+  ] as const) {
+    const proj = mkdtempSync(join(tmpdir(), 'spex-tail-'))
+    const home = mkdtempSync(join(tmpdir(), 'spex-home-'))
+    const env = { ...process.env, SPEXCODE_HOME: home, CODEX_HOME: mkdtempSync(join(tmpdir(), 'spex-codex-')), SPEXCODE_PI_AGENT_DIR: mkdtempSync(join(tmpdir(), 'spex-pi-')) }
+    const g = (...args: string[]) => execFileSync('git', ['-C', proj, ...args], { encoding: 'utf8', env })
+    const spex = (...args: string[]) => execFileSync(process.execPath, [TSX, CLI, ...args], { cwd: proj, encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] })
+    g('init', '-q', '-b', 'main'); g('config', 'user.email', 't@t.co'); g('config', 'user.name', 't')
+    writeFileSync(join(proj, '.gitignore'), gitignore)
+    writeFileSync(join(proj, 'CLAUDE.md'), claude)
+    g('add', '-A'); g('commit', '-qm', 'init')
+    spex('init', '.', '--harness', 'claude')
+    g('add', '.spec'); g('commit', '-qm', 'adopt', '--no-verify')
+    assert.ok(readFileSync(join(proj, '.gitignore'), 'utf8').includes('spexcode:start'), `${label}: the block is in the working .gitignore`)
+    assert.equal(status(g), '', `${label}: adoption shows no phantom modification`)
+    spex('materialize')
+    assert.equal(status(g), '', `${label}: a re-materialize stays clean`)
+    spex('uninstall', '.')
+    assert.equal(readFileSync(join(proj, '.gitignore'), 'utf8'), gitignore, `${label}: uninstall restores the exact .gitignore bytes`)
+    assert.equal(readFileSync(join(proj, 'CLAUDE.md'), 'utf8'), claude, `${label}: uninstall restores the exact CLAUDE.md bytes`)
+  }
+})
+
 test('content-filter edges: missing shim degrades to cat; a contract change re-materializes + settles; uninstall leaves no residue', { skip: !gitAvailable() && 'git not available' }, () => {
   const { proj, g, spex, setLocal } = makeHost()
   setLocal('{}\n')                     // a real host overlay file, so the uninstall reveal below is observable

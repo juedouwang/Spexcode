@@ -17,7 +17,7 @@ import { codexHarness, codexHeadlessHarness } from './codex-harness.js'
 import { buildShim, cleanHarness, listenerAt, noLaunchEnv, pexec, SPEX } from './harness-shim.js'
 import { sessionHost } from './session-host.js'
 import type { ListenerProbe } from './harness-shim.js'
-export { buildShim, cleanHarness, headlessTurnFailureShell, listenerAt, noLaunchEnv, paneTreeRuns, procSnapshot, sessionIdentityEnvVars, writeManagedBlock, removeManagedBlock, writeManagedJsonHooks, removeManagedJsonHooks, sharedShimHasHostContent, GENERATED_MARK, isGeneratedArtifact } from './harness-shim.js'
+export { buildShim, cleanHarness, headlessTurnFailureShell, listenerAt, noLaunchEnv, paneTreeRuns, procSnapshot, sessionIdentityEnvVars, writeManagedBlock, removeManagedBlock, unappendManagedBlock, writeManagedJsonHooks, removeManagedJsonHooks, sharedShimHasHostContent, GENERATED_MARK, isGeneratedArtifact } from './harness-shim.js'
 export type { ListenerProbe } from './harness-shim.js'
 
 // @@@ harness-adapter - the ONE seam between SpexCode and the coding-agent harness (Claude Code, native adapter, …).

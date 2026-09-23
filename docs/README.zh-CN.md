@@ -58,6 +58,10 @@ codex plugin add atlas@spexcode
 
 插件第一次引入用的是 `spex init --pure`：只有 git 里的 `.spec/` 纯文件，不装钩子，不改 agent 配置。以后要用 session 层，再用下面的 CLI 加上。
 
+<img src="readme/atlas.zh.png" alt="Tencent/vConsole 的 atlas：「VConsole 核心」节点和它的生命周期图。" width="900">
+
+更多这样画出来的仓库：[flatcode.spexcode.net](https://flatcode.spexcode.net/)。图由 [archify](https://github.com/tt-a1i/archify)（MIT）渲染。
+
 ## 函数被改了，就成为一个 review 项
 
 之后某个 commit 改了 `verifyWebhook` 里的行，测试可能照样全绿。SpexCode 会把这个 commit 变成一个有名字的 review 项：
@@ -87,9 +91,30 @@ spex spec ack webhook-security --reason "契约仍然成立，这次重构没有
 ```
 
 
-## 产品界面
+## 在图形界面里用
 
 <img src="readme/product.png" alt="SpexCode dashboard：桌面端的 review session，手机端的 webhook-security spec。" width="900">
+
+## 在终端里用
+
+<img src="readme/term-session-ls.svg" alt="Harbor 演示项目上的 spex session ls：处于 review、asking、parked 的 session，各自带着 spec 节点、id、父 session 和 prompt。" width="900">
+
+dashboard 能做的事，CLI 都有对应的命令；`spex help` 会列出全部。
+
+## Git 还是笔记本？直观的 spec 管理
+
+spec 是 git 里的 Markdown 文件，dashboard 把它们当成可以直接操作的文档来读。
+
+<table>
+<tr>
+<td width="50%"><img src="readme/spec-change.gif" alt="在 webhook-security spec 上点「1 pending change」，打开一个运行中的 session 对它所做修改的逐词红线对比。"></td>
+<td width="50%"><img src="readme/spec-send.gif" alt="选中 webhook-security spec 里的一句话，右键，附上一条消息发给某个 session。"></td>
+</tr>
+<tr>
+<td>运行中的 session 对这份 spec 的修改，以红线对比呈现。</td>
+<td>选中一段话，发给某个 session。</td>
+</tr>
+</table>
 
 ## 快速开始
 

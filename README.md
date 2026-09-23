@@ -58,6 +58,10 @@ Draw the spec atlas of this repository, and give me the page I can open.
 
 The plugin uses `spex init --pure` for the first adoption: plain `.spec/` files in git, no hooks and no agent configuration. You can add the session layer later with the CLI below.
 
+<img src="docs/readme/atlas.png" alt="The atlas of sindresorhus/ky: the Request pipeline node with its workflow diagram." width="900">
+
+More repositories drawn this way: [flatcode.spexcode.net](https://flatcode.spexcode.net/). Diagrams are rendered by [archify](https://github.com/tt-a1i/archify) (MIT).
+
 ## A changed function becomes a review item
 
 A later commit changes lines inside `verifyWebhook`. The test suite can still be green. SpexCode turns the commit into a named item for review:
@@ -87,9 +91,30 @@ spex spec ack webhook-security --reason "the contract still holds; this refactor
 ```
 
 
-## The product surface
+## Use it in the GUI
 
 <img src="docs/readme/product.png" alt="The SpexCode dashboard: a review session on the desktop and the webhook-security spec on a phone." width="900">
+
+## Use it in the terminal
+
+<img src="docs/readme/term-session-ls.svg" alt="spex session ls on the Harbor demo: sessions in review, asking and parked, each with its spec node, id, parent and prompt." width="900">
+
+Everything the dashboard does is also a CLI verb; `spex help` lists them.
+
+## Git or notebook? Intuitive spec management
+
+Specs are Markdown files in git, and the dashboard reads them as documents you can act on.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/readme/spec-change.gif" alt="On the webhook-security spec, 1 pending change opens the word-level redline of the edit a live session made."></td>
+<td width="50%"><img src="docs/readme/spec-send.gif" alt="A sentence of the webhook-security spec is selected, right-clicked, and sent to a session with a message."></td>
+</tr>
+<tr>
+<td>A live session's edit to this spec, as a redline.</td>
+<td>A selected passage, sent to a session.</td>
+</tr>
+</table>
 
 ## Quick start from a shell
 

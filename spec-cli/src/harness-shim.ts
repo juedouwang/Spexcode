@@ -53,8 +53,19 @@ export function writeManagedBlock(file: string, body: string, comment: readonly 
   const block = `${START}\n${body}\n${END}`
   const cur = existsSync(file) ? readFileSync(file, 'utf8') : ''
   const re = new RegExp(`${esc(START)}[\\s\\S]*?${esc(END)}`)
-  const next = re.test(cur) ? cur.replace(re, block) : cur.trim() ? `${cur.replace(/\n*$/, '')}\n\n${block}\n` : `${block}\n`
+  // appended after the host's exact bytes with one separating newline — [[content-filter]]'s exact tail
+  const next = re.test(cur) ? cur.replace(re, block) : cur ? `${cur}\n${block}\n` : `${block}\n`
   return writeFileIfChanged(file, next)
+}
+
+// The exact inverse of writeManagedBlock's append: a block that ends the file (only blank lines after it)
+// sits after the host's bytes plus one separating newline, so dropping that newline restores them exactly —
+// a host that ended mid-line or on a blank line keeps that tail. null when the block is not trailing.
+export function unappendManagedBlock(text: string, START: string, END: string): string | null {
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m = new RegExp(`(^|\\n)${esc(START)}\\n[\\s\\S]*?${esc(END)}\\n*$`).exec(text)
+  if (!m) return null
+  return m.index === 0 && m[1] === '' ? '' : text.slice(0, m.index)
 }
 
 // the INVERSE of writeManagedBlock: strip the spexcode sentinel block (with the blank space around it),
@@ -70,6 +81,12 @@ export function removeManagedBlock(file: string, comment: readonly [string, stri
   const re = new RegExp(`\\n*${esc(START)}[\\s\\S]*?${esc(END)}\\n*`)
   const cur = existsSync(file) ? readFileSync(file, 'utf8') : ''
   if (!re.test(cur)) return
+  const trailing = unappendManagedBlock(cur, START, END)
+  if (trailing !== null) {
+    if (deleteIfEmpty && !trailing.trim()) { rmSync(file, { force: true }); return }
+    writeFileSync(file, trailing)
+    return
+  }
   // remove ONLY our block plus the blank lines writeManagedBlock inserted around it; do NOT normalize the
   // user's OWN whitespace elsewhere — this must leave every other byte intact so it is a faithful INVERSE of
   // writeManagedBlock's append. A global `\n{3,}→\n\n` collapse used to sit here and mutated pre-existing

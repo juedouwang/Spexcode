@@ -21,10 +21,14 @@ re-injects on checkout), and history never sees the block.
 ## expanded spec
 
 The sentinel markers (`<!-- spexcode:start/end -->`) are the load-bearing anchor: clean strips exactly the
-marked block, smudge (re)injects it, and the invariant is **clean(smudge(x)) == x** — for text ending in
-one newline, git's own well-formed shape; a 0-or-2+-newline tail normalizes once on the first round-trip,
-then stays stable. Smudge strips defensively before injecting, so a block that somehow reached the index
-can never double-inject.
+marked block, smudge (re)injects it, and the invariant is **clean(smudge(x)) == x** byte for byte, whatever
+x's tail. Smudge appends the block after the host's exact bytes with one separating newline — a blank line
+before the block when the host ended with a newline, none when it ended mid-line — and clean of a block that
+ends the file removes exactly that. A repository whose `.gitignore` ends without a newline (common) or on a
+blank line therefore shows no phantom modification after adoption, and uninstall hands the same bytes back.
+Text with no sentinel passes through unchanged. A block the user moved away from the end keeps the older
+collapse (the block and its surrounding blank lines become one gap). Smudge strips defensively before
+injecting, so a block that somehow reached the index can never double-inject.
 
 The driver is PER-CLONE, while its payload is PER-TREE. One stable `git config
 filter.spexcode.smudge/clean` and a managed `.git/info/attributes` binding cover the closed materialized text
