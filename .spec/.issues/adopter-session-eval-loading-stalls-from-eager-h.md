@@ -1,9 +1,10 @@
 ---
 concern: Adopter session/eval loading stalls from eager historical session work
 by: human
-status: open
+status: landed
 nodes: session-console, session-eval, evals-view
 created: 2026-07-24T03:50:29.820Z
+closedAt: 2026-09-23T20:32:50.825Z
 ---
 
 Spec: [[session-console]] [[session-eval]] [[evals-view]]
