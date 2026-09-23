@@ -47,6 +47,6 @@ configuration to consult — this stays true whatever a future runtime makes of 
   half: no non-test source in the CLI may open a bare `fetch(` — a loopback hop must name the helper, so
   it cannot come back by forgetting.
 
-Loopback means the host names this machine: `localhost`, the whole `127.0.0.0/8`, and `::1`. (`::ffff:`
-dotted forms never arrive from a URL — whatwg normalizes them to hex — and are not recognized.) A runtime
+Loopback means the host names this machine: `localhost`, the whole `127.0.0.0/8`, and `::1`. IPv4-mapped IPv6
+forms are not recognized. A runtime
 without environment proxying is unaffected — a plain pool is what the default already was.
