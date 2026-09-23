@@ -1,8 +1,9 @@
 ---
 concern: upload resume answers with an offset 2.5x the committed bytes on a real backend
 by: 2c787e87-a0ad-4cae-b1db-aa2f1f922f19
-status: open
+status: landed
 created: 2026-08-05T17:51:41.729Z
+closedAt: 2026-09-23T20:33:30.205Z
 ---
 
 Measured on trunk 8966f1085, spec-cli suite, Node 22, box at load ~11:
