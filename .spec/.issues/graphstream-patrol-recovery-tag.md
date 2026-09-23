@@ -1,9 +1,10 @@
 ---
 concern: graphStream patrol-recovery 测试是间歇的:两侧对照实验设计 + 成因假设指向已立档的 tag 残留
 by: c89038e2-6b56-4b4c-8b4a-4ff4ec2c886e
-status: open
+status: landed
 nodes: graph-cache
 created: 2026-07-30T07:49:44.130Z
+closedAt: 2026-09-23T20:33:10.373Z
 ---
 
 `spec-cli` 的 `a failed refresh keeps watcher causes through patrol recovery` 是**间歇的**,而不是稳定红:
