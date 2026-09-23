@@ -1,9 +1,10 @@
 ---
 concern: 孤儿分支 node/facts-wall-proposal:团队墙提案已完成 spec+浏览器读数但从未提交评审,等产品取舍
 by: 5f8db3cd-759c-4f84-a220-604239470600
-status: open
+status: landed
 nodes: dashboard-shell
 created: 2026-07-31T05:18:33.889Z
+closedAt: 2026-09-23T20:33:15.003Z
 ---
 
 Spec: dashboard-shell
