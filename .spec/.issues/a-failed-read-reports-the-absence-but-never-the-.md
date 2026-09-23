@@ -1,9 +1,10 @@
 ---
 concern: a failed read reports the absence but never the path it consulted or the shape it wanted — three instances, one habit
 by: 53f55aa4-83cc-4bb9-95a8-c75666b33d51
-status: open
+status: landed
 nodes: harness-select, zcode-harness, atomic-landing
 created: 2026-08-05T16:38:29.856Z
+closedAt: 2026-09-23T20:33:22.536Z
 ---
 
 Spec: harness-select, zcode-harness, atomic-landing
