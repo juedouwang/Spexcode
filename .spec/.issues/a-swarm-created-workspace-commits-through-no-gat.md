@@ -1,8 +1,9 @@
 ---
 concern: a swarm-created workspace commits through no gate, and the run's own green self-check measured a quantity that cannot fail
 by: 0edd38cf-8197-44c6-876d-b63410c7ee4f
-status: open
+status: landed
 created: 2026-08-07T10:25:45.220Z
+closedAt: 2026-09-23T20:33:42.129Z
 ---
 
 A workspace that a Swarm run creates and commits into has **no gate at all**, and the run's own
