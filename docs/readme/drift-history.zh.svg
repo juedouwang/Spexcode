@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 380" role="img" aria-label="spec webhook-security v3 之后，commit cbe53ee 改了 webhookVerifier.ts 第 6 行，落在 verifyWebhook（第 5–13 行）内，重叠即 anchor-drift。">
+<style>
+svg{--fg:#1f2328;--mute:#6e7781;--rule:#d0d7de;--cell:#eaeef2;--acc:#0e7c86;--hit:#cf222e}
+@media (prefers-color-scheme:dark){svg{--fg:#e6edf3;--mute:#8b949e;--rule:#30363d;--cell:#21262d;--acc:#39c5cf;--hit:#ff7b72}}
+text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;fill:var(--mute)}
+.fg{fill:var(--fg)} .acc{fill:var(--acc)} .hit{fill:var(--hit)} .cell{fill:var(--cell)}
+.rule{stroke:var(--rule);stroke-width:2;fill:none}
+</style>
+<line x1="60" y1="70" x2="900" y2="70" class="rule"/>
+<circle cx="140" cy="70" r="7" style="fill:var(--acc)"/>
+<text x="140" y="46" text-anchor="middle">9fab101</text>
+<text x="140" y="100" text-anchor="middle" class="acc">spec v3</text>
+<circle cx="560" cy="70" r="7" style="fill:var(--hit)"/>
+<text x="560" y="46" text-anchor="middle">cbe53ee</text>
+<text x="560" y="100" text-anchor="middle" class="hit">只改代码</text>
+<text x="900" y="46" text-anchor="end">HEAD</text>
+<path d="M140 124 v8 H900" class="rule" stroke-width="1"/>
+<text x="148" y="150">window：spec 上一版之后的 commit</text>
+<rect x="62" y="226" width="36" height="22" rx="3" class="cell"/><rect x="102" y="226" width="36" height="22" rx="3" class="cell"/><rect x="142" y="226" width="36" height="22" rx="3" class="cell"/><rect x="182" y="226" width="36" height="22" rx="3" class="cell"/><rect x="222" y="226" width="36" height="22" rx="3" class="cell"/><rect x="262" y="226" width="36" height="22" rx="3" class="cell"/><rect x="302" y="226" width="36" height="22" rx="3" class="cell"/><rect x="342" y="226" width="36" height="22" rx="3" class="cell"/><rect x="382" y="226" width="36" height="22" rx="3" class="cell"/><rect x="422" y="226" width="36" height="22" rx="3" class="cell"/><rect x="462" y="226" width="36" height="22" rx="3" class="cell"/><rect x="502" y="226" width="36" height="22" rx="3" class="cell"/><rect x="542" y="226" width="36" height="22" rx="3" class="cell"/><rect x="582" y="226" width="36" height="22" rx="3" class="cell"/><rect x="622" y="226" width="36" height="22" rx="3" class="cell"/><rect x="662" y="226" width="36" height="22" rx="3" class="cell"/><rect x="702" y="226" width="36" height="22" rx="3" class="cell"/><rect x="742" y="226" width="36" height="22" rx="3" class="cell"/><rect x="782" y="226" width="36" height="22" rx="3" class="cell"/><rect x="822" y="226" width="36" height="22" rx="3" class="cell"/><rect x="862" y="226" width="36" height="22" rx="3" class="cell"/>
+<rect x="220" y="220" width="360" height="34" rx="6" style="fill:none;stroke:var(--acc);stroke-width:2"/>
+<text x="220" y="208" class="acc">verifyWebhook  L5–13</text>
+<rect x="262" y="226" width="36" height="22" rx="3" style="fill:var(--hit)"/>
+<text x="60" y="282">webhookVerifier.ts @ cbe53ee · L1–21</text>
+<text x="60" y="312" class="hit">+ L6   header = header.trim();</text>
+<text x="60" y="352" class="fg">{6} ∩ [5, 13] ≠ ∅   →   anchor-drift</text>
+</svg>
