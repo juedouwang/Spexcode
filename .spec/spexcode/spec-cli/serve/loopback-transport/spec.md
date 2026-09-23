@@ -11,6 +11,8 @@ related:
   - spec-cli/src/client.ts
   - spec-cli/src/sessions.ts
   - spec-cli/src/doctor.ts
+  - spec-cli/src/host.ts
+  - spec-cli/src/evidence.ts
 ---
 
 # loopback-transport
@@ -36,13 +38,15 @@ configuration to consult — this stays true whatever a future runtime makes of 
 - **node:http hops** ([[public-mode]]'s `proxyHttp` upstreams — supervisor, project backends, hub legs,
   session-web previews — and [[serve]]'s child health probe) pass one shared `http.Agent` that never
   consulted the environment. A runtime's proxying lives on the agent-level proxy config of the default
-  agent; an explicit plain agent has none, so the hop is direct regardless of flags. This is also why the
-  hop keeps its plain `Host`-derivation behavior on every runtime ([[public-mode]]'s Host rule).
-- **fetch hops** ([[remote-client]]'s CLI/backend requests to the resolved base, and the peer leg) name a
-  plain undici dispatcher for the one request when the target's host is loopback, leaving the global
+  agent; an explicit plain agent has none, so the hop is direct regardless of flags.
+- **fetch hops** ([[remote-client]]'s CLI/backend requests to the resolved base, the peer leg,
+  [[host-gateway]]'s reconciler probe of recorded backends, and evidence retrieval from the backend base)
+  name a plain undici dispatcher for the one request when the target's host is loopback, leaving the global
   dispatcher — and with it the user's proxying for every non-loopback target — untouched. Requests to a
-  remote `--api` endpoint or any external URL keep global behavior exactly.
+  remote `--api` endpoint or any external URL keep global behavior exactly. A source-scan test guards this
+  half: no non-test source in the CLI may open a bare `fetch(` — a loopback hop must name the helper, so
+  it cannot come back by forgetting.
 
-Loopback means the host names this machine: `localhost`, the whole `127.0.0.0/8`, `::1`, and the
-IPv4-mapped form. A runtime without environment proxying is unaffected — a plain pool is what the default
-already was.
+Loopback means the host names this machine: `localhost`, the whole `127.0.0.0/8`, and `::1`. (`::ffff:`
+dotted forms never arrive from a URL — whatwg normalizes them to hex — and are not recognized.) A runtime
+without environment proxying is unaffected — a plain pool is what the default already was.

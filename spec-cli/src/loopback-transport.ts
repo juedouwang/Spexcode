@@ -10,7 +10,7 @@ import { Agent } from 'undici'
 // targets keep the user's proxy settings; only our own loopback hops go direct, by carrying a connection
 // pool that has no proxy configuration to consult.
 
-const LOOPBACK_NAMES = new Set(['localhost', '::1', '::ffff:127.0.0.1'])
+const LOOPBACK_NAMES = new Set(['localhost', '::1'])
 
 export function isLoopbackHost(hostname: string): boolean {
   const bare = hostname.replace(/^\[|\]$/g, '').toLowerCase()   // URL.hostname keeps IPv6 brackets
@@ -28,10 +28,6 @@ export const loopbackHttpAgent = new http.Agent({ keepAlive: true })
 const directDispatcher = new Agent()
 
 export function fetchBypassingLoopbackProxy(url: string, init?: RequestInit): Promise<Response> {
-  try {
-    if (!isLoopbackHost(new URL(url).hostname)) return fetch(url, init)
-  } catch {
-    return fetch(url, init)   // a malformed URL is fetch's error to raise, in fetch's words
-  }
+  if (!isLoopbackHost(new URL(url).hostname)) return fetch(url, init)
   return fetch(url, { ...init, dispatcher: directDispatcher } as RequestInit)
 }
