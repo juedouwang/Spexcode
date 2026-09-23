@@ -15,9 +15,9 @@ English · [中文](docs/README.zh-CN.md)
 
 SpexCode is a Git-backed spec tree and session manager for coding agents.
 
-You define what the software should do, let agents work on it, and review their changes against that intent.
+It is built around one problem: spec drift. Agents change code faster than anyone updates the documents that say what the code is for, and nothing tells you when a spec stopped describing the system. In SpexCode each spec names the file or function it governs. When a later commit changes that code and leaves the spec alone, SpexCode names the spec and the commit. With the hooks installed, a change inside an anchored function is blocked until someone updates the spec or records why it still holds.
 
-Each spec can point to the file or function it governs. When a later commit changes that target without updating the spec, SpexCode reports it for review. Sessions give agents isolated branches, worktrees, and a record of what they handed back.
+Sessions run each agent in its own branch and worktree, so every change comes back with the specs it touched named in its commits.
 
 A spec node is a `spec.md` under `.spec/`. Its `code:` field names the implementation:
 
@@ -30,7 +30,7 @@ code:
 Only a push signed with the configured SHA-256 secret may change a release stream.
 ```
 
-The `code:` line is the binding. When a later commit changes `verifyWebhook`, SpexCode can name the node that needs review instead of leaving the change buried in the history.
+That line is the whole binding. Versions, drift and history are computed from git on every read; nothing else is stored.
 
 ## Start from the agent you already use
 

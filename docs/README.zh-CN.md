@@ -15,9 +15,9 @@
 
 SpexCode 是一个基于 git 的 spec 树和 coding agent 会话管理器。
 
-你写下软件应该做什么，让 agent 去实现，再对照这份意图 review 它们的改动。
+它围绕一个问题而做：spec 漂移。agent 改代码的速度，远快于有人去更新「这段代码是干什么的」那份说明，而 spec 什么时候不再描述系统，没有任何东西会提醒你。在 SpexCode 里，每个 spec 写明自己管辖哪个文件或函数。之后的 commit 改了这段代码却没动 spec，SpexCode 会指出是哪个 spec、哪个 commit。装了钩子以后，改到被锚定的函数的提交会被拦下，直到有人更新 spec，或写明它为什么仍然成立。
 
-每个 spec 可以指向它管辖的文件或函数。之后的 commit 改了这个目标、却没有更新 spec，SpexCode 就把它报出来等你 review。session 给每个 agent 一个隔离的分支和 worktree，并记录它交回了什么。
+session 让每个 agent 在自己的分支和 worktree 里工作，每次改动交回来时，commit 里都写着它碰过哪些 spec。
 
 一个 spec 节点就是 `.spec/` 下的一个 `spec.md`。它的 `code:` 字段写明实现在哪：
 
@@ -30,7 +30,7 @@ code:
 Only a push signed with the configured SHA-256 secret may change a release stream.
 ```
 
-`code:` 这一行就是绑定。之后哪个 commit 改了 `verifyWebhook`，SpexCode 都能指出需要 review 的是哪个节点，这次改动不会埋在历史里。
+绑定就这一行。版本、漂移和历史都在每次读取时从 git 算出来，此外不存任何东西。
 
 ## 从你正在用的 agent 开始
 
