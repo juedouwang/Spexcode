@@ -18,7 +18,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@vscode/tree-sitter-wasm": "0.3.1"
+    "@vscode/tree-sitter-wasm": "0.3.1",
+    "koffi": "3.3.1"
   },
   "publishConfig": {
     "access": "public"

@@ -1,2 +1,4 @@
+# The repository is LF-canonical (byte-exact fixtures, bash scripts); keep LF on Windows checkouts too.
+* text=auto eol=lf
 packages/archify/renderers/shared/generated-validators.mjs linguist-generated=true
 distribution/gugu/spexcode-atlas/archify.mjs linguist-generated=true

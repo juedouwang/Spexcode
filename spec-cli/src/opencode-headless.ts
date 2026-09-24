@@ -9,6 +9,7 @@ import { promisify } from 'node:util'
 import { headlessTurnFailureShell } from './harness-shim.js'
 import type { DispatchResult, HarnessDeliveryRecord } from './harness.js'
 import { shQuote } from './sh.js'
+import { exec as winmuxExec } from './winmux/client.mjs'
 
 const pexec = promisify(execFile)
 const WAKE_EARLY_EXIT_MS = 5_000
@@ -179,7 +180,7 @@ export async function spawnOpenCodeHeadlessTurn(
   }
   args.push(opencodeHeadlessWakeCommand(opencodeCmd, rec.harnessSessionId, text, outcomePath))
   try {
-    await pexec('tmux', args, { timeout: 5_000 })
+    await (process.platform === 'win32' ? winmuxExec(tmuxSock, args.slice(2), { timeoutMs: 5_000 }) : pexec('tmux', args, { timeout: 5_000 }))
     const deadline = Date.now() + WAKE_EARLY_EXIT_MS
     for (;;) {
       const outcome = readTurnOutcome(outcomePath)

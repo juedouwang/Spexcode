@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { platform } from 'node:os'
 import { dirname, join } from 'node:path'
+import { winProcessStartToken } from './win-process.js'
 
 export type ProcessIdentity = { pid: number; startToken: string }
 
@@ -57,12 +58,7 @@ export function processStartToken(pid: number, procRoot = '/proc'): string | nul
   // needs a claimant identity refused: `spex spec lint` and `spex graph --public --html` both died on a fresh
   // Windows machine. The platform difference belongs here, at the one seam that answers "is this the same
   // process", not in the callers that ask.
-  if (platform() === 'win32') {
-    try {
-      const ticks = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', `(Get-Process -Id ${pid}).StartTime.Ticks`], { encoding: 'utf8' }).trim()
-      return /^\d+$/.test(ticks) ? ticks : null
-    } catch { return null }
-  }
+  if (platform() === 'win32') return winProcessStartToken(pid)
   try {
     const started = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' }).trim()
     return started || null

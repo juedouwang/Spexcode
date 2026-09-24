@@ -2,6 +2,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { closeSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { processStartToken, runtimeRoot, sessionArtifactPath, sessionStoreDir, type ProcessIdentity } from '@spexcode/spec-core'
 import {
   TMUX_SOCK,
@@ -43,6 +44,7 @@ export const tmuxHost: SessionHost = {
   },
   witness(id) { return id },
   attach(id) {
+    if (process.platform === 'win32') return spawnSync(process.execPath, [WINMUX_CLI, '-L', TMUX_SOCK, 'attach-session', '-t', id], { stdio: 'inherit' }).status ?? 1
     return spawnSync('tmux', ['-u', '-L', TMUX_SOCK, 'attach-session', '-t', id], { stdio: 'inherit' }).status ?? 1
   },
   async sendKeys(id, args) {
@@ -136,8 +138,11 @@ export function selectSessionHost(has = hasTmux()): SessionHost {
 }
 
 export function hasTmux(): boolean {
+  // winmux ships with SpexCode, so the tmux command surface is always present on native Windows.
+  if (process.platform === 'win32') return true
   try { return spawnSync('tmux', ['-V'], { stdio: 'ignore' }).status === 0 } catch { return false }
 }
+export const WINMUX_CLI = fileURLToPath(new URL('./winmux/cli.mjs', import.meta.url))
 
 // Runtime boot performs the loud capability check. Keeping the accessor transport-pure preserves the old
 // lifecycle behavior in narrow teardown paths (a missing tmux binary is treated as an ordinary failed command,

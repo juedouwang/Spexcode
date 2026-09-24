@@ -476,7 +476,7 @@ export const rvSock = (id: string): string => {
 // liveness probe, delivery, teardown) reads the one path the agent actually bound.
 export function stampRvSock(id: string, dir = runtimeRoot()): string {
   const path = assertRvSockPath(id, dir)
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
+  if (process.platform !== 'win32') mkdirSync(dirname(path), { recursive: true, mode: 0o700 })   // a named pipe has no directory
   mkdirSync(dirname(rvStamp(id)), { recursive: true })
   writeFileSync(rvStamp(id), path)
   return path
@@ -850,7 +850,7 @@ export const unlinkSocks = async (...paths: string[]): Promise<void> => {
 
 const rendezvousLaunchEnv = (id: string): string[] => [
   'CLAUDE_BG_BACKEND=daemon',
-  `CLAUDE_BG_RENDEZVOUS_SOCK=${rvSock(id)}`,
+  `CLAUDE_BG_RENDEZVOUS_SOCK=${shQuote(rvSock(id))}`,
 ]
 
 export const claudeHarness: Harness = {

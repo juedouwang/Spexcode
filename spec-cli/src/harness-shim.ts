@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { createConnection } from 'node:net'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { git, HARNESS_IDENTITIES, type HarnessId } from '@spexcode/spec-core'
+import { git, HARNESS_IDENTITIES, winProcessTable, type HarnessId } from '@spexcode/spec-core'
 import { shQuote } from './sh.js'
 import { writeFileIfChanged } from './file-write.js'
 import type { Harness, HarnessArtifacts, PaneProbe, ProcTable } from './harness.js'
@@ -295,6 +295,7 @@ export function paneTreeRuns(pane: PaneProbe | undefined, re: RegExp): boolean {
 // (beside its consumers) and shared with sessions.ts's liveSnapshot, so the two probe layers can never parse
 // ps differently. A failed/timed-out ps returns an empty table: the callers read that as not-provably-running.
 export async function procSnapshot(timeoutMs = 4000): Promise<ProcTable> {
+  if (process.platform === 'win32') return winProcessTable()
   const t: ProcTable = new Map()
   let out = ''
   try { ({ stdout: out } = await pexec('ps', ['-eo', 'pid=,ppid=,comm='], { timeout: timeoutMs, killSignal: 'SIGKILL' })) } catch { return t }

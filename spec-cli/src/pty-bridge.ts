@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { alive } from './sessions.js'
 import { sessionHost } from './session-host.js'
 
-const HELPER = fileURLToPath(new URL('./pty-helper.mjs', import.meta.url))
+// Native Windows attaches through a winmux client stream; the helper process contract is identical.
+const HELPER = fileURLToPath(new URL(process.platform === 'win32' ? './winmux/attach-helper.mjs' : './pty-helper.mjs', import.meta.url))
 
 export type Viewer = {
   send: (data: Buffer) => void

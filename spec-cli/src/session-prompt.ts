@@ -5,12 +5,17 @@
 // deliberately stayed in the session core; nothing here reads a record to decide it.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { loadConfig, loadSpecs, mainRoot, runtimeRoot, sessionStoreDir, type ConfigPreset, type SpecLite } from '@spexcode/spec-core'
 import { defaultHarness, harnessById, sessionIdentityEnvVars, type Harness } from './harness.js'
 import { LAUNCH_FAST_FAIL_S } from './session-liveness.js'
 import { readRecord, type SessRec } from './session-record.js'
 import { lastSendVia } from './session-timeline.js'
 import { shQuote } from './sh.js'
+import { TMUX_SOCK, WINMUX_CLI } from './session-host.js'
+import { gitBashPath } from './winmux/git-bash.mjs'
+
+const WINMUX_BORN = fileURLToPath(new URL('./winmux/born.mjs', import.meta.url))
 
 const HARNESS = defaultHarness
 // the session's global store, created on demand — the launch artifacts (the script, agent.pid, the identity
@@ -29,7 +34,7 @@ const rvEnv = (id: string, harness = HARNESS, nativeStartToken?: string | null) 
   const scrub = sessionIdentityEnvVars().map((v) => `-u ${v}`)
   const homeVars = ['SPEXCODE_HOME', 'CODEX_HOME'].flatMap((v) => {
     const value = process.env[v]
-    return value ? [`${v}=${value}`] : []
+    return value ? [`${v}=${shQuote(value)}`] : []
   })
   return [...scrub,
     `SPEXCODE_SESSION_ID=${id}`,
@@ -145,6 +150,11 @@ export function titleFromPrompt(prompt: string): string | null {
 // invocation inside the birth-registration `sh -c '…'` wrapper without any segment double-expanding.
 // 后端把这条命令输入交互式 shell，脚本路径必须作为一个 shell 参数传递。
 export function launchShellCommand(file: string): string {
+  // The native-Windows pane shell is PowerShell, where Git's bash is invoked by path (call operator, '' escapes ').
+  if (process.platform === 'win32') {
+    const ps = (s: string) => `'${s.replace(/'/g, "''")}'`
+    return `& ${ps(gitBashPath())} ${ps(file)}`
+  }
   return `bash ${shQuote(file)}`
 }
 export function launchScript(id: string, tail: string, harness: Harness = HARNESS, cmd?: string): string {
@@ -165,7 +175,10 @@ export function launchScript(id: string, tail: string, harness: Harness = HARNES
   // parsed exactly ONCE, never double-expanded. Each retry attempt rewrites agent.pid with a fresh `$$`.
   const pidPath = join(storeDir(id), 'agent.pid')
   const receiptPath = join(storeDir(id), 'agent.identity.json')
-  const born = `sh -c ${shQuote(`rm -f ${shQuote(receiptPath)}; printf %s "$$" > ${shQuote(pidPath)}; exec env ${invocation}`)}`
+  const born = process.platform === 'win32'
+    // winmux/born.mjs is the Windows birth registration: it records the agent's real Windows pid (see there).
+    ? `MSYS_NO_PATHCONV=1 ${[process.execPath, WINMUX_BORN, pidPath, receiptPath, invocation].map(shQuote).join(' ')}`
+    : `sh -c ${shQuote(`rm -f ${shQuote(receiptPath)}; printf %s "$$" > ${shQuote(pidPath)}; exec env ${invocation}`)}`
   // Bounded relaunch on a FAST exit: the agent launcher can exit within seconds before the rendezvous socket
   // ever appears. That is enough evidence to retry, but not enough evidence to name the cause. Once the agent
   // has run past LAUNCH_FAST_FAIL_S it has genuinely started; its eventual (much later) exit is a normal
@@ -219,6 +232,10 @@ export function launchScript(id: string, tail: string, harness: Harness = HARNES
     `exit $__spex_rc`,
     ``,
   ]
-  writeFileSync(file, launchBody.join('\n'))
+  // Native Windows: the script's in-pane `tmux capture-pane -t "$TMUX_PANE"` addresses this session on winmux.
+  const preamble = process.platform === 'win32'
+    ? [`tmux() { ${[process.execPath, WINMUX_CLI, '-L', TMUX_SOCK].map(shQuote).join(' ')} "$@"; }`, `TMUX_PANE=${shQuote(id)}`]
+    : []
+  writeFileSync(file, [...preamble, ...launchBody].join('\n'))
   return file
 }

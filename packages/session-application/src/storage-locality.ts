@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { realpathSync, statSync, statfsSync } from 'node:fs'
-import { isAbsolute, dirname } from 'node:path'
+import { createRequire } from 'node:module'
+import { isAbsolute, dirname, parse } from 'node:path'
 
 import { DatabasePathError } from './storage-path.js'
 
@@ -180,9 +181,35 @@ export function requireLocalDatabasePathWithDetector(
 const readDarwinMountTable = (): string =>
   execFileSync('/sbin/mount', [], { encoding: 'utf8', timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'] })
 
+// Windows answers "is this volume local?" itself: GetDriveTypeW on the resolved path's volume root. A UNC path
+// (a share, \\wsl$ / \\wsl.localhost) is a network transport by construction.
+const WINDOWS_DRIVE_TYPES: Record<number, FilesystemClassification> = {
+  2: { locality: 'local', name: 'removable' },
+  3: { locality: 'local', name: 'fixed' },
+  4: { locality: 'network', name: 'remote' },
+  6: { locality: 'local', name: 'ramdisk' },
+}
+export const windowsLocalityDetector = (driveType: (root: string) => number): LocalityDetector => ({
+  platform: 'win32',
+  classify: parentPath => {
+    const resolved = realpathSync.native(parentPath).replace(/^\\\\\?\\(?!UNC\\)/, '')
+    if (resolved.startsWith('\\\\')) return { locality: 'network', name: 'unc' }
+    const type = driveType(parse(resolved).root)
+    return WINDOWS_DRIVE_TYPES[type] ?? { locality: 'undetermined', name: `drive type ${type}` }
+  },
+})
+
+let getDriveType: ((root: string) => number) | undefined
+const readWindowsDriveType = (root: string): number => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getDriveType ??= (createRequire(import.meta.url)('koffi') as any).load('kernel32.dll').func('uint32 __stdcall GetDriveTypeW(str16 root)')
+  return getDriveType!(root)
+}
+
 export function localityDetectorForPlatform(platform: string): LocalityDetector {
   if (platform === 'linux') return linuxLocalityDetector(parentPath => statfsSync(parentPath).type)
   if (platform === 'darwin') return darwinLocalityDetector(readDarwinMountTable)
+  if (platform === 'win32') return windowsLocalityDetector(readWindowsDriveType)
   return { platform }
 }
 
