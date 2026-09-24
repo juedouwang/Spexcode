@@ -298,11 +298,14 @@ type GitExec = { stdout: Buffer; stderr: string }
 // execFile's AbortSignal kills only its direct child. A wedged adapter may have descendants (the
 // deterministic tests use a shell + sleep), so async git runs in their own process group and abort/timeout
 // kills the whole group. The callback still carries the same stdout/stderr/error shape to gitA/gitTry.
+// POSIX: its own process group, so a timeout kills git and its children together. Windows has no process groups,
+// and a detached (consoleless) git would give each hook it runs a console of its own; there it runs hidden instead.
+const GIT_SPAWN_GROUP = process.platform === 'win32' ? { windowsHide: true } : { detached: true }
 const GIT_MAX_BUFFER = 1 << 24
 function execGit(args: string[], env: NodeJS.ProcessEnv, signal?: AbortSignal, maxBuffer = GIT_MAX_BUFFER, input?: string): Promise<GitExec> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(gitAbortError()); return }
-    const child = spawn(gitBinary(env), args, { env, detached: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
+    const child = spawn(gitBinary(env), args, { env, ...GIT_SPAWN_GROUP, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
     const stdout: Buffer[] = [], stderr: Buffer[] = []
     let stdoutBytes = 0, stderrBytes = 0, aborted = false, timedOut = false, overflow = false
     let spawnError: Error | null = null
@@ -373,7 +376,7 @@ async function execGitForCaller(args: string[], env: NodeJS.ProcessEnv, maxBuffe
 function execGitStream(args: string[], env: NodeJS.ProcessEnv, signal?: AbortSignal, input?: string): Promise<GitExec> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(gitAbortError()); return }
-    const child = spawn(gitBinary(env), args, { env, detached: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
+    const child = spawn(gitBinary(env), args, { env, ...GIT_SPAWN_GROUP, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] })
     const stdout: Buffer[] = [], stderr: Buffer[] = []
     let settled = false, aborted = false, timedOut = false
     let stdinError: any = null

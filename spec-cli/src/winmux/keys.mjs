@@ -30,6 +30,8 @@ export function keyBytes(name) {
     rest = rest.slice(2)
   }
   const modifier = 1 + (shift ? 1 : 0) + (meta ? 2 : 0) + (control ? 4 : 0)
+  // unmodified Home/End as tmux sends them (ESC[1~ / ESC[4~), so an agent reads the same bytes as on Linux
+  if (modifier === 1 && (rest === 'Home' || rest === 'End')) return `${CSI}${rest === 'Home' ? 1 : 4}~`
   if (CURSOR[rest]) return modifier === 1 ? `${CSI}${CURSOR[rest]}` : `${CSI}1;${modifier}${CURSOR[rest]}`
   if (TILDE[rest]) return modifier === 1 ? `${CSI}${TILDE[rest]}~` : `${CSI}${TILDE[rest]};${modifier}~`
   if (FUNCTION[rest] !== undefined) {

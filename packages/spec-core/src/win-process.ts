@@ -1,10 +1,16 @@
 // Native Windows process facts straight from kernel32 (via koffi FFI): the start-time token that makes a pid an
 // identity, and the whole-machine pid → (ppid, image) table that POSIX reads from /proc or `ps -eo`. Both are
 // polled on liveness paths, so they must cost microseconds — not a PowerShell spawn per question.
+import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 
 type ProcRow = { ppid: number; comm: string }
-type Api = { startToken(pid: number): string | null; table(): Map<number, ProcRow> }
+type Api = {
+  startToken(pid: number): string | null
+  table(): Map<number, ProcRow>
+  hasConsole(): boolean
+  attachConsole(pid: number): boolean
+}
 
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 const STILL_ACTIVE = 259
@@ -31,8 +37,12 @@ function load(): Api {
   const Process32FirstW = kernel32.func('int __stdcall Process32FirstW(void* snapshot, _Inout_ SPEX_PROCESSENTRY32W* entry)')
   const Process32NextW = kernel32.func('int __stdcall Process32NextW(void* snapshot, _Inout_ SPEX_PROCESSENTRY32W* entry)')
   const entrySize = koffi.sizeof(PROCESSENTRY32W)
+  const GetConsoleProcessList = kernel32.func('uint32 __stdcall GetConsoleProcessList(_Out_ uint32* list, uint32 count)')
+  const AttachConsole = kernel32.func('int __stdcall AttachConsole(uint32 pid)')
 
   api = {
+    hasConsole: () => GetConsoleProcessList([0], 1) > 0,
+    attachConsole: (pid) => AttachConsole(pid) !== 0,
     // The creation FILETIME of a LIVE process. An exited process whose handle someone still holds keeps its
     // times readable, so the exit code gates the answer: a dead pid has no token.
     startToken(pid) {
@@ -72,4 +82,17 @@ export function winProcessStartToken(pid: number): string | null {
 
 export function winProcessTable(): Map<number, ProcRow> {
   return load().table()
+}
+
+// A Windows process with no console (started detached, or by a GUI such as the desktop app) makes every console
+// child it spawns — git, bash — allocate a console of its own: ~0.5s per git call instead of ~40ms, and a window
+// flash when the spawn is not hidden. SpexCode processes therefore always own a console: one that no terminal
+// gave them is borrowed, windowless, from a hidden helper (a CREATE_NO_WINDOW console outlives the helper once
+// attached), so children inherit it exactly as they would inherit a terminal's.
+export function ensureWindowsConsole(): void {
+  if (process.platform !== 'win32' || load().hasConsole()) return
+  const helper = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore', windowsHide: true })
+  const attached = !!helper.pid && load().attachConsole(helper.pid)
+  helper.kill()
+  if (!attached) throw new Error(`could not attach a console from helper process ${helper.pid}`)
 }

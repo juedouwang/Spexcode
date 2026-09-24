@@ -118,7 +118,7 @@ test('B7 spex session attach renders the pane in a real console and detaches cle
   const argv = [process.execPath, ...spexArgs(['session', 'attach', fakeId])]
   const line = windows   // the Windows pane shell is PowerShell
     ? `${Object.entries(vars).map(([k, v]) => `$env:${k}='${v}'`).join('; ')}; & ${argv.map((a) => `'${a}'`).join(' ')}`
-    : `${Object.entries(vars).map(([k, v]) => `${k}='${v}'`).join(' ')} ${argv.map((a) => `'${a}'`).join(' ')}`
+    : `env -u TMUX ${Object.entries(vars).map(([k, v]) => `${k}='${v}'`).join(' ')} ${argv.map((a) => `'${a}'`).join(' ')}`   // tmux refuses a nested attach while $TMUX is set
   world.mux(['send-keys', '-t', host, '-l', '--', line])
   world.mux(['send-keys', '-t', host, 'Enter'])
   const screen = await waitFor('attached pane shows the agent', () => {
