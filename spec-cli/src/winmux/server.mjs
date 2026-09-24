@@ -48,6 +48,7 @@ function createSession(name, { cols, rows, cwd, env, command }) {
     proc: null,
   }
   term.onTitleChange((title) => { session.title = title })
+  term.onData((reply) => session.proc?.write(reply))
   sessions.set(name, session)
   clearTimeout(emptyTimer)
   spawnPane(session, { cwd, env, command })
@@ -63,9 +64,13 @@ function spawnPane(session, { cwd, env, command }) {
   session.proc = proc
   proc.onData((data) => {
     session.term.write(data)
-    for (const client of session.clients) client.output(data)
+    // ConPTY opens with a Device Attributes query and holds the pane's output until a terminal answers. The
+    // mirror is the pane's terminal (as tmux is), so it answers; viewers must not answer it a second time.
+    const shown = data.replaceAll('\x1b[c', '')
+    if (shown) for (const client of session.clients) client.output(shown)
   })
-  proc.onExit(() => {
+  proc.onExit(({ exitCode }) => {
+    log(`pane exit ${session.name} pid=${proc.pid} code=${exitCode}`)
     if (session.proc === proc) destroy(session, 'exited')
   })
 }

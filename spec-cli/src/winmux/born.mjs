@@ -65,8 +65,9 @@ const META = /([()\][%!^"`<>&|;, *?])/g
 const cmdArg = (arg) => `"${String(arg).replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, '$1$1')}"`.replace(META, '^$1').replace(META, '^$1')
 
 function start() {
-  const bashEnv = { ...env, MSYS_NO_PATHCONV: '1' }
-  if (command === 'bash' || command === 'sh') return spawn(gitBashPath(), args, { stdio: 'inherit', env: bashEnv })
+  // SpexCode's own `bash -lc <script>` launchers hand their native agent only Windows paths and the prompt, so
+  // MSYS path rewriting (which turns a leading-slash prompt into a Git install path) is switched off for them.
+  if (command === 'bash' || command === 'sh') return spawn(gitBashPath(), args, { stdio: 'inherit', env: { ...env, MSYS_NO_PATHCONV: '1' } })
   const file = which(command)
   const extension = extname(file).toLowerCase()
   if (extension === '.exe' || extension === '.com') return spawn(file, args, { stdio: 'inherit', env })
@@ -76,8 +77,9 @@ function start() {
     const line = [file.replace(META, '^$1'), ...args.map(cmdArg)].join(' ')
     return spawn(env[keyOf('ComSpec')] || 'cmd.exe', ['/d', '/s', '/c', `"${line}"`], { stdio: 'inherit', env, windowsVerbatimArguments: true })
   }
-  // an extensionless file is a shebang script (npm's sh shims, test fixtures): Git Bash runs it
-  return spawn(gitBashPath(), [file, ...args], { stdio: 'inherit', env: bashEnv })
+  // an extensionless file is a shebang script (a user's wrapper, test fixtures): Git Bash runs it with its usual
+  // path conversion, which such scripts rely on to hand POSIX paths to native programs
+  return spawn(gitBashPath(), [file, ...args], { stdio: 'inherit', env })
 }
 
 // Ctrl-C in the pane is the agent's key (interrupt); this parent must not die of it and orphan the agent.

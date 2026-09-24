@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 // @@@ tsxBin - tsx's JS ENTRY (dist/cli.mjs), dev-or-published, run through `node` by the caller
 // (`spawn(process.execPath, [tsxBin(pkgDir), entry, …])`). In the dev monorepo tsx sits in
@@ -17,9 +18,10 @@ export function tsxBin(pkgDir: string): string {
   }
 }
 
+// `--import` takes a module specifier: an absolute Windows path (E:\…) is not one, its file:// URL is.
 function tsxLoader(pkgDir: string): string {
   try {
-    return createRequire(join(pkgDir, 'package.json')).resolve('tsx/esm')
+    return pathToFileURL(createRequire(join(pkgDir, 'package.json')).resolve('tsx/esm')).href
   } catch {
     throw new Error(`tsx runtime not found from ${pkgDir} — run \`npm install\` in the SpexCode package`)
   }

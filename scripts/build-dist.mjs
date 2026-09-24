@@ -1,4 +1,4 @@
-import { existsSync, renameSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, readdirSync, renameSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
@@ -22,8 +22,14 @@ if (build.status !== 0) {
 }
 
 try {
-  if (existsSync(dist)) renameSync(dist, previous)
-  renameSync(next, dist)
+  if (process.platform === 'win32' && existsSync(dist)) {
+    // Windows refuses to rename a directory an editor or type server is watching; swap its contents instead.
+    for (const entry of readdirSync(dist)) rmSync(join(dist, entry), { recursive: true, force: true })
+    cpSync(next, dist, { recursive: true })
+  } else {
+    if (existsSync(dist)) renameSync(dist, previous)
+    renameSync(next, dist)
+  }
   rmSync(previous, { recursive: true, force: true })
 } catch (error) {
   if (!existsSync(dist) && existsSync(previous)) renameSync(previous, dist)
