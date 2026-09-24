@@ -22,7 +22,7 @@ async function openOrStart(socket) {
   try { return await open(socket) } catch (error) {
     if (error.code !== 'ENOENT') throw error
   }
-  spawn(process.execPath, [SERVER, socket], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+  spawn(process.execPath, [SERVER, '--daemonize', socket], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
   const deadline = Date.now() + START_TIMEOUT_MS
   for (;;) {
     try { return await open(socket) } catch (error) {

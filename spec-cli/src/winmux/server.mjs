@@ -3,16 +3,23 @@
 // via node-pty), plus a headless xterm mirror of each screen so capture-pane / list-panes #{pane_title} /
 // refresh-client answer from real terminal state. The command grammar is the tmux subset SpexCode issues.
 // One server per `-L` label; it exits a few seconds after its last session goes, like tmux's exit-empty.
+import { spawn } from 'node:child_process'
 import { createServer } from 'node:net'
 import { appendFileSync } from 'node:fs'
 import { hostname, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { createRequire } from 'node:module'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { frameReader, pipePath, send } from './protocol.mjs'
 import { keyBytes } from './keys.mjs'
 import { gitBashPath } from './git-bash.mjs'
 
+// `--daemonize`: start the real server and exit at once, so the server's parent is gone and it stands outside the
+// starter's process tree (tmux's double fork). A tree kill of the backend must never take the sessions with it.
+if (process.argv[2] === '--daemonize') {
+  spawn(process.execPath, [fileURLToPath(import.meta.url), process.argv[3]], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+  process.exit(0)
+}
 const socketName = process.argv[2]
 // node-pty and the xterm mirror live with the dashboard package, the daemon runtime's home ([[packaging]]).
 const dashboard = dirname(createRequire(import.meta.url).resolve('@spexcode/spec-dashboard/package.json'))
@@ -24,6 +31,9 @@ const EMPTY_EXIT_MS = 3000
 const PANE_SHELL = ['powershell.exe', ['-NoLogo']]
 const logFile = join(tmpdir(), `spexcode-winmux-${socketName}.log`)
 const log = (line) => appendFileSync(logFile, `${new Date().toISOString()} [${process.pid}] ${line}\n`)
+const crash = (error) => { log(`CRASH ${error?.stack ?? error}`); process.exit(70) }
+process.on('uncaughtException', crash)
+process.on('unhandledRejection', crash)
 
 class CommandError extends Error {}
 const fail = (message) => { throw new CommandError(message) }
@@ -62,6 +72,7 @@ function spawnPane(session, { cwd, env, command }) {
   const [file, args] = command ? [gitBashPath(), ['-c', command]] : PANE_SHELL
   const proc = pty.spawn(file, args, { name: 'xterm-256color', cols: session.cols, rows: session.rows, cwd, env, useConptyDll: true })
   session.proc = proc
+  session.exited = new Promise((resolve) => proc.onExit(resolve))
   proc.onData((data) => {
     session.term.write(data)
     // ConPTY opens with a Device Attributes query and holds the pane's output until a terminal answers. The
@@ -108,7 +119,7 @@ const flush = (session) => new Promise((resolve) => session.term.write('', resol
 function repaint(session) {
   const core = session.term._core
   const body = session.serializer.serialize({ scrollback: 0 })
-  const mouse = core._coreMouseService.activeEncoding === 'SGR' ? '\x1b[?1006h' : ''
+  const mouse = core.coreMouseService.activeEncoding === 'SGR' ? '\x1b[?1006h' : ''
   const cursor = core.coreService.isCursorHidden ? '\x1b[?25l' : '\x1b[?25h'
   return `\x1b[?2026h\x1b[?1049l\x1b[0m\x1b[H\x1b[2J${body}${mouse}${cursor}\x1b[?2026l`
 }
@@ -283,8 +294,12 @@ const COMMANDS = {
   }],
   'has-session': ['t:', (o) => { target(o.t); return '' }],
   'kill-session': ['t:', (o) => { destroy(target(o.t), 'killed'); return '' }],
-  'kill-server': ['', () => {
-    for (const session of [...sessions.values()]) destroy(session, 'killed')
+  // The panes' processes die asynchronously (node-pty kills the console's process list); the server outlives them
+  // so none is left to die later by console close, still holding its directory.
+  'kill-server': ['', async () => {
+    const panes = [...sessions.values()]
+    for (const session of panes) destroy(session, 'killed')
+    await Promise.all(panes.map((session) => session.exited))
     setTimeout(() => process.exit(0), 50)
     return ''
   }],
