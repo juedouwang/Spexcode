@@ -1,5 +1,6 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync, readdirSync, renameSync, rmSync, rmdirSync, copyFileSync, chmodSync } from 'node:fs'
-import { join, dirname, relative } from 'node:path'
+import { join, dirname, relative, delimiter } from 'node:path'
+import { gitBashPath } from './winmux/git-bash.mjs'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { loadSystemConfig, loadSkillConfig, loadAgentConfig, loadConfig, configPath } from '@spexcode/spec-core'
@@ -112,8 +113,10 @@ export function contentHash(proj: string): string {
   try {
     const harnessSh = join(PKG, 'hooks', 'harness.sh')
     const gitDir = dirname(gitBinary(process.env))
-    const env = { ...process.env, PATH: `${gitDir}:${process.env.PATH || ''}` }
-    return execFileSync('bash', ['-c', `cd "${proj}" && . "${harnessSh}" && hp_config_hash`], { env }).toString().trim()
+    const env = { ...process.env, PATH: `${gitDir}${delimiter}${process.env.PATH || ''}` }
+    // Windows: Git's own bash, never whatever `bash` PATH names first (WindowsApps' bash.exe is WSL's launcher)
+    const bash = process.platform === 'win32' ? gitBashPath() : 'bash'
+    return execFileSync(bash, ['-c', `cd "${proj}" && . "${harnessSh}" && hp_config_hash`], { env }).toString().trim()
   } catch { return '' }
 }
 
@@ -166,6 +169,25 @@ function retireLegacyCodexAnchors(checkout: string): void {
 
 function infoExcludePath(proj: string): string {
   return join(gitCommonDirOf(proj), 'info', 'exclude')
+}
+
+// The .spec tree holds bash handlers that dispatch.sh runs straight from a session's checkout. Git for Windows
+// defaults to core.autocrlf=true, which checks text out as CRLF and breaks bash. One repo-local attribute (the
+// common dir's info/attributes: untracked, shared by every worktree) keeps SpexCode's own tree LF everywhere.
+const SPEC_EOL_ATTRIBUTE = '/.spec/** text eol=lf'
+function ensureSpecEolAttribute(proj: string): void {
+  const file = join(gitCommonDirOf(proj), 'info', 'attributes')
+  const current = existsSync(file) ? readFileSync(file, 'utf8') : ''
+  if (current.split(/\r?\n/).includes(SPEC_EOL_ATTRIBUTE)) return
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, `${SPEC_EOL_ATTRIBUTE}\n${current}`)
+}
+function removeSpecEolAttribute(proj: string): void {
+  const file = join(gitCommonDirOf(proj), 'info', 'attributes')
+  if (!existsSync(file)) return
+  const current = readFileSync(file, 'utf8')
+  const kept = current.split('\n').filter((line) => line.replace(/\r$/, '') !== SPEC_EOL_ATTRIBUTE).join('\n')
+  if (kept !== current) writeFileSync(file, kept)
 }
 function isTracked(proj: string, file: string): boolean {
   try { git(['-C', proj, 'ls-files', '--error-unmatch', file]); return true } catch { return false }
@@ -335,6 +357,7 @@ export function dematerialize(proj = process.cwd(), arts: HarnessArtifacts = { s
     eraseTree(tree, tree === current ? arts : { skills: [], agents: [] }, false)
   }
   try { removeManagedBlock(infoExcludePath(proj), ['# ', ''], false) } catch { /* not a git repo */ }
+  try { removeSpecEolAttribute(proj) } catch { /* not a git repo */ }
   removeContractFilter(proj, [...HARNESSES.flatMap((h) => h.contractFiles(proj)), join(proj, '.gitignore')], true)
 }
 
@@ -610,6 +633,7 @@ export function materialize(proj = process.cwd()): MaterializeResult {
   writeFileIfChanged(join(rt, 'content-hash'), h)
   writeFileIfChanged(join(runtimeRoot(proj), 'harness-selection-v1'), '')
   writeManagedBlock(infoExcludePath(proj), entries(commonEntries), ['# ', ''])
+  ensureSpecEolAttribute(proj)
   publishSelection(join(rt, 'harnesses'), selectionBody(selected, plugins.length > 0))
   return { contentHash: h, planted }
 }

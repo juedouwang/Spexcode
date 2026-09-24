@@ -8,7 +8,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 // Native Windows: a CLI started without a console (detached, or by the desktop app) borrows a hidden one before
 // it spawns git or bash, so those children inherit it instead of each allocating their own.
-if (process.platform === 'win32') (await import('@spexcode/spec-core/win-process')).ensureWindowsConsole()
+if (process.platform === 'win32') await (await import('@spexcode/spec-core/win-process')).ensureWindowsConsole()
 
 const cmd = process.argv[2]
 

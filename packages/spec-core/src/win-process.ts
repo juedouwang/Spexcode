@@ -89,10 +89,16 @@ export function winProcessTable(): Map<number, ProcRow> {
 // flash when the spawn is not hidden. SpexCode processes therefore always own a console: one that no terminal
 // gave them is borrowed, windowless, from a hidden helper (a CREATE_NO_WINDOW console outlives the helper once
 // attached), so children inherit it exactly as they would inherit a terminal's.
-export function ensureWindowsConsole(): void {
+export async function ensureWindowsConsole(): Promise<void> {
   if (process.platform !== 'win32' || load().hasConsole()) return
-  const helper = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore', windowsHide: true })
-  const attached = !!helper.pid && load().attachConsole(helper.pid)
+  // The helper's console is connected during its process start-up, before any of its JS runs: its first byte
+  // on stdout is the proof the console exists and can be attached.
+  const helper = spawn(process.execPath, ['-e', 'process.stdout.write("1"); setTimeout(() => {}, 60000)'], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+  await new Promise<void>((resolve, reject) => {
+    helper.stdout!.once('data', () => resolve())
+    helper.once('error', reject)
+  })
+  const attached = load().attachConsole(helper.pid!)
   helper.kill()
-  if (!attached) throw new Error(`could not attach a console from helper process ${helper.pid}`)
+  if (!attached) throw new Error(`could not attach the console of helper process ${helper.pid}`)
 }

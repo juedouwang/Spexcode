@@ -139,7 +139,7 @@ hp_runtime_dir() {
   local gcd
   gcd=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || gcd=$(realpath "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null)
   [ -n "$gcd" ] || return 1
-  printf '%s/projects/%s' "${SPEXCODE_HOME:-$HOME/.spexcode}" "$(printf '%s' "$(dirname "$gcd")" | sed 's#[/.]#-#g')"
+  printf '%s/projects/%s' "${SPEXCODE_HOME:-$HOME/.spexcode}" "$(printf '%s' "$(dirname "$gcd")" | sed 's#[/.:\]#-#g')"
 }
 
 # the per-WORKTREE materialize slot (mirrors layout.ts `treeSlotDir`): <runtime>/trees/<enc(worktree-toplevel)> —
@@ -152,7 +152,7 @@ hp_tree_dir() {
   rd=$(hp_runtime_dir) || return 1
   top=$(git rev-parse --show-toplevel 2>/dev/null)
   [ -n "$top" ] || return 1
-  printf '%s/trees/%s' "$rd" "$(printf '%s' "$top" | sed 's#[/.]#-#g')"
+  printf '%s/trees/%s' "$rd" "$(printf '%s' "$top" | sed 's#[/.:\]#-#g')"
 }
 
 # the per-session GLOBAL store dir for a session id — <runtime>/sessions/<id> (sibling of the per-project

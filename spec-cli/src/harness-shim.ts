@@ -225,7 +225,8 @@ export function isGeneratedArtifact(file: string): boolean {
 // baked in so dispatch.sh can export SPEXCODE_HARNESS (the detector for the shell side). SPEX is inherited by
 // the cli-needing handlers.
 export function buildShim(id: HarnessId, events: readonly string[], dispatch: string, spex: string): { content: string; hooks: Record<string, unknown[]>; cmd: (e: string) => string } {
-  const cmd = (e: string) => `SPEX='${spex}' bash ${dispatch} ${id} ${e}`
+  // quoted: a Windows install path (E:\…, spaces) must reach bash as one word with its backslashes intact
+  const cmd = (e: string) => `SPEX='${spex}' bash ${shQuote(dispatch)} ${id} ${e}`
   const hooks: Record<string, unknown[]> = {}
   for (const e of events) hooks[e] = [{ hooks: [{ type: 'command', command: cmd(e) }] }]
   // `content` stays the standalone rendering (what a shim file that is wholly ours would hold); `hooks` is
