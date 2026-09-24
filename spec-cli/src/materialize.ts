@@ -167,6 +167,9 @@ function retireLegacyCodexAnchors(checkout: string): void {
   }
 }
 
+// git patterns and pathspecs are '/'-separated on every platform; path.relative answers with '\' on Windows
+const gitPath = (path: string): string => process.platform === 'win32' ? path.replaceAll('\\', '/') : path
+
 function infoExcludePath(proj: string): string {
   return join(gitCommonDirOf(proj), 'info', 'exclude')
 }
@@ -573,7 +576,7 @@ export function materialize(proj = process.cwd()): MaterializeResult {
       .filter((p) => !p.startsWith('..')),
     '.spec/spexcode.local.json', '.worktrees/', '.session',
   ]
-  const entries = (list: string[]) => [...new Set(list)].sort().join('\n')
+  const entries = (list: string[]) => [...new Set(list.map(gitPath))].sort().join('\n')
   // Contract residence stays a live fact. Selection-dependent untracked products are ignored by this tree's
   // working .gitignore, whose own managed block is filtered when the host tracks/owns that file.
   const filterContracts: string[] = []
@@ -618,10 +621,10 @@ export function materialize(proj = process.cwd()): MaterializeResult {
     removeManagedBlock(ignoreFile, ['# ', ''], !ignoreTracked && !ignoreHost.trim())
   }
 
-  const payloads: ContractFilterPayload[] = filterContracts.map((file) => ({ file: relative(proj, file), content: contract }))
+  const payloads: ContractFilterPayload[] = filterContracts.map((file) => ({ file: gitPath(relative(proj, file)), content: contract }))
   if (ignoreTracked || ignoreHost.trim()) payloads.push({ file: '.gitignore', content: ignoreBody })
   const bindings: ContractFilterBinding[] = [
-    ...[...new Set(HARNESSES.flatMap((h) => h.contractFiles(proj).map((file) => relative(proj, file))))]
+    ...[...new Set(HARNESSES.flatMap((h) => h.contractFiles(proj).map((file) => gitPath(relative(proj, file)))))]
       .map((file) => ({ file, start: '<!-- spexcode:start -->', end: '<!-- spexcode:end -->' })),
     { file: '.gitignore', start: '# spexcode:start', end: '# spexcode:end' },
   ]
