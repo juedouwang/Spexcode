@@ -15,7 +15,7 @@
 
 SpexCode 是一个基于 git 的 spec 树和 coding agent 会话管理器。
 
-它围绕一个问题而做：spec 漂移。agent 改代码的速度，远快于有人去更新「这段代码是干什么的」那份说明，而 spec 什么时候不再描述系统，没有任何东西会提醒你。在 SpexCode 里，每个 spec 写明自己管辖哪个文件或函数。之后的 commit 改了这段代码却没动 spec，SpexCode 会指出是哪个 spec、哪个 commit。装了钩子以后，改到被锚定的函数的提交会被拦下，直到有人更新 spec，或写明它为什么仍然成立。
+天下苦「spec 漂移」久矣。agent 改代码的速度，远快于有人去更新「这段代码是干什么的」那份说明，而 spec 什么时候不再描述系统，没有任何东西会提醒你。在 SpexCode 里，每个 spec 写明自己管辖哪个文件或函数。之后的 commit 改了这段代码却没动 spec，SpexCode 会指出是哪个 spec、哪个 commit。装了钩子以后，改到被锚定的函数的提交会被拦下，直到有人更新 spec，或写明它为什么仍然成立。
 
 session 让每个 agent 在自己的分支和 worktree 里工作，每次改动交回来时，commit 里都写着它碰过哪些 spec。
 
@@ -36,25 +36,16 @@ Only a push signed with the configured SHA-256 secret may change a release strea
 
 装 CLI 之前，可以先在 Claude Code 或 Codex 里试。**atlas** 插件会读整个仓库，写出第一版 spec 树，检查每张图，最后交回一个能直接打开的页面。
 
-**Claude Code**
-
 ```sh
+# Claude Code
 claude plugin marketplace add shuxueshuxue/spexcode-plugins
 claude plugin install atlas@spexcode
-```
-
-**Codex**
-
-```sh
+# Codex
 codex plugin marketplace add shuxueshuxue/spexcode-plugins
 codex plugin add atlas@spexcode
 ```
 
-然后在任意仓库里说一句：
-
-```text
-画出这个仓库的 spec atlas，给我一个能打开的页面。
-```
+然后在任意仓库里运行 `/atlas`。
 
 插件第一次引入用的是 `spex init --pure`：只有 git 里的 `.spec/` 纯文件，不装钩子，不改 agent 配置。以后要用 session 层，再用下面的 CLI 加上。
 
@@ -62,17 +53,17 @@ codex plugin add atlas@spexcode
 
 更多这样画出来的仓库：[flatcode.spexcode.net](https://flatcode.spexcode.net/)。图由 [archify](https://github.com/tt-a1i/archify)（MIT）渲染。
 
-## 函数被改了，就成为一个 review 项
+## 可计算的 spec 漂移
 
-之后某个 commit 改了 `verifyWebhook` 里的行，测试可能照样全绿。SpexCode 会把这个 commit 变成一个有名字的 review 项：
+spec 的每个版本就是一次碰过它 `spec.md` 的 commit，窗口从最新一版开始；之后每个 commit，SpexCode 用 Git 给出的改动行，去和被锚定单元在那个 commit 时的行区间求交。
 
 <img src="readme/term-spec-lint.svg" alt="spex spec lint 报出 src/ingest/webhookVerifier.ts#verifyWebhook 自 spec webhook-security v3 以来的 anchor-drift。" width="900">
 
-改到文件的其它地方只是提醒；改到 `verifyWebhook` 里面就会阻断。SpexCode 不判断新的校验逻辑好不好，它只保证是哪个函数、哪个 commit，不会在 review 队列里丢掉。
+有交集就是 `anchor-drift`：这是错误，装了钩子时提交会被拦下。同一文件其它位置的改动只是 drift 提醒。
 
 <img src="readme/drift-history.zh.svg" alt="spec webhook-security v3 之后，commit cbe53ee 改了 webhookVerifier.ts 第 6 行，落在 verifyWebhook（第 5–13 行）内，重叠即 anchor-drift。" width="900">
 
-窗口从 spec 的上一版开始。之后的每个 commit，都拿它改动的行去和被锚定函数在那个 commit 时的行区间求交。只要有重叠就报错，直到 spec 更新，或者有人签字确认。
+全部从 Git 算出，不存任何漂移数据。两种解法：spec 跟着代码改，新版本就会关闭窗口；或者用 `Spec-OK` trailer / `spex spec ack` 写明契约仍然成立。
 
 ```sh
 spex spec lint
@@ -173,8 +164,6 @@ spex dashboard
 ## 三层
 
 <img src="readme/layers.zh.svg" alt="三层：L0 是 git 里的 spec–code 图，L1 是建在其上的隔离 worktree 里的 agent session，L2 是读取 L1 的 dashboard。" width="900">
-
-SpexCode 不提供编码模型，也不判断改动对不对。它记录意图，度量代码相对意图的移动，并给由此产生的工作一个 review 的地方。
 
 [上手指南](https://spexcode.net/getting-started/) · [和 agent 一起工作](https://spexcode.net/working-with-agents/) · [参与贡献](CONTRIBUTING.md)
 

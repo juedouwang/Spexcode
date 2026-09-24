@@ -39,6 +39,9 @@ own plugin tree (that is `.plugins`), and none of it is loaded by SpexCode.
 **One folder per host, in that host's own format.**
 
 - `claude-code/atlas` — a Claude Code plugin: `.claude-plugin/plugin.json` and `skills/atlas/SKILL.md`.
+- Claude Code exposes that skill as the native `/atlas` slash invocation; no duplicate `commands/atlas.md` is needed.
+- Codex exposes the same `skills/atlas/SKILL.md` shape as the native `/atlas` invocation; Codex has no separate
+  prompts file in this package.
 - `zcode/atlas` — a ZCode plugin: `.zcode-plugin/plugin.json`, the same skill with a section for ZCode, and the
   dynamic workflow that section runs ([[zcode-atlas-workflow]]). A ZCode build without the `CreateWorkflow` tool
   (dynamic workflows are not in every release yet) gets the same job turn by turn from the skill's own steps, and
@@ -51,9 +54,13 @@ own plugin tree (that is `.plugins`), and none of it is loaded by SpexCode.
   bilingual descriptions and category, an `icon.svg`, the `package.json` its loader resolves, and the skill. The
   `use-` prefix is that library's rule for a plugin built around another product.
 
-**No marketplace.** No folder is a store. Each package is the unit that gets submitted to its host's own store or
-library later, and until then a person loads it from the folder: Claude Code with `--plugin-dir`, ZCode by
-listing it in `plugins.dirs`, gugu's Install picker, and a copy into a PenguinHarness agent's `skills/`.
+The hosts that do not expose a native `/atlas` skill command keep their own surface: ZCode uses `plugins.dirs` and
+the shipped dynamic workflow, gugu uses its tab's Draw button, and PenguinHarness reads the skill from its library
+path. The package does not invent a second command format for those hosts.
+
+**The root is the marketplace; the subfolders are packages.** Claude Code and Codex add `distribution/` as the
+marketplace root and install the named package with the commands above. ZCode lists `zcode/atlas` in
+`plugins.dirs`, gugu uses its Install picker, and PenguinHarness copies the skill into an agent's `skills/`.
 
 **Nothing installed, nothing configured.** Every package runs SpexCode through npx, and a repository without a
 spec tree is seeded by `spex init --pure` — the skeleton verb that exists for exactly this: `.spec/spexcode.json`
