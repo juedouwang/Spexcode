@@ -63,7 +63,7 @@ export const SpexcodePlugin = async (ctx) => {
   const capture = (sid) => {
     if (captured || !sid || !recordId) return
     captured = true
-    try { spawn(SPEX, ["internal", "opencode-capture", sid], { cwd, env: process.env, stdio: "ignore" }) } catch { /* resume falls back to --continue */ }
+    try { spawn(SPEX_ARGV[0], [...SPEX_ARGV.slice(1), "internal", "opencode-capture", sid], { cwd, env: process.env, stdio: "ignore" }) } catch { /* resume falls back to --continue */ }
   }
   const adopt = (sid) => { if (!rootSession && sid) { rootSession = sid; capture(sid) } }
   const injectPrompt = async (text) => {

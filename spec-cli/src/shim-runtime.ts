@@ -14,6 +14,8 @@
 // the embedded runtime chunk. `harnessId` is baked as dispatch.sh's argv[1] (the deterministic shell-side
 // harness detector); `dispatch`/`spex` are the absolute paths materialize bakes into every shim — the
 // 'dispatch.sh' substring doubles as the identity stamp cleanHarness gates removal on.
+import { gitBashPath } from './winmux/git-bash.mjs'
+
 export function shimRuntimeSource(harnessId: string, dispatch: string, spex: string): string {
   return `// ---- spexcode shared shim runtime (embedded from spec-cli/src/shim-runtime.ts — edit THERE) ----
 import { spawn as __spexSpawn } from "node:child_process"
@@ -23,6 +25,10 @@ import { unlinkSync as __spexUnlink } from "node:fs"
 const DISPATCH = ${JSON.stringify(dispatch)}
 const SPEX = ${JSON.stringify(spex)}
 const HARNESS = ${JSON.stringify(harnessId)}
+// the bash that runs dispatch.sh, and the argv that runs the spex CLI: on Windows Git's own bash (a bare
+// "bash" can be WSL's launcher) and node + spex.mjs (a .mjs file is not executable there)
+const BASH = ${JSON.stringify(process.platform === 'win32' ? gitBashPath() : 'bash')}
+const SPEX_ARGV = ${JSON.stringify(process.platform === 'win32' ? ['node', spex] : [spex])}
 
 // cfg: { sessionId: () => string, cwd?: () => string } — the two identity accessors a host binds; everything
 // else is shared machinery.
@@ -37,7 +43,7 @@ const spexShimRuntime = (cfg) => {
     let out = "", err = ""
     let child
     try {
-      child = __spexSpawn("bash", [DISPATCH, HARNESS, event], {
+      child = __spexSpawn(BASH, [DISPATCH, HARNESS, event], {
         cwd: cwd(), env: { ...process.env, SPEX }, stdio: ["pipe", "pipe", "pipe"], timeout: 600_000,
       })
     } catch (e) { resolve({ code: 1, out, err: String(e) }); return }
