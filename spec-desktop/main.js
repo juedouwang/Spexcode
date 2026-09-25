@@ -236,13 +236,6 @@ function startWslGateway(distro, port) {
 }
 
 async function attachOrStartGateway() {
-  if (process.platform === 'win32') {
-    const wslHost = await wsl.detectWsl()
-    const running = await findRunningGateway(wslHost.name)
-    if (running) return { url: running, owned: false, child: null, distro: wslHost.name }
-    const port = await freePort()
-    return startWslGateway(wslHost.name, port)
-  }
   const running = await findRunningGateway()
   if (running) return { url: running, owned: false, child: null }
 
@@ -276,7 +269,7 @@ function installApplicationMenu() {
       ]
     : []
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: 'File', submenu: [{ id: 'add-project', label: 'Add Project…', click: () => void (process.platform === 'win32' ? pickProject(gateway?.url, gateway?.distro) : desktopIntegration.addProject()) }, { type: 'separator' }, { role: 'quit' }] },
+    { label: 'File', submenu: [{ id: 'add-project', label: 'Add Project…', click: () => void desktopIntegration.addProject() }, { type: 'separator' }, { role: 'quit' }] },
     { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
     { label: 'View', submenu: [{ role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
     { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'front' }, ...macTabShortcuts] },
@@ -373,16 +366,8 @@ if (hasSingleInstanceLock) {
       return
     }
     try {
-      if (process.platform === 'win32') {
-        ipcMain.on('spexcode-sudo-password', (_event, password) => {
-          if (!bootstrapChild?.stdin?.writable) return
-          bootstrapChild.stdin.write(`${String(password)}\n`)
-        })
-        gateway = await bootstrapWindowsAndStart()
-        ipcMain.handle('spexcode-pick-project', () => pickProject(gateway.url, gateway.distro))
-      } else {
-        gateway = await attachOrStartGateway()
-      }
+      // Windows runs the same native gateway as macOS and Linux; wsl.js is the upstream WSL host, unused here.
+      gateway = await attachOrStartGateway()
       openWindow(gateway.url, `${gateway.url}/`, true)
       await desktopIntegration.ready()
       app.on('activate', () => {

@@ -91,9 +91,10 @@ export function winProcessTable(): Map<number, ProcRow> {
 // attached), so children inherit it exactly as they would inherit a terminal's.
 export async function ensureWindowsConsole(): Promise<void> {
   if (process.platform !== 'win32' || load().hasConsole()) return
-  // The helper's console is connected during its process start-up, before any of its JS runs: its first byte
-  // on stdout is the proof the console exists and can be attached.
-  const helper = spawn(process.execPath, ['-e', 'process.stdout.write("1"); setTimeout(() => {}, 60000)'], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+  // The helper is cmd.exe, a console-subsystem program (process.execPath may be electron.exe, which gets no
+  // console). Its console is connected during process start-up, so its first byte on stdout proves the console
+  // exists and can be attached; the open stdin pipe keeps it waiting until it is killed.
+  const helper = spawn('cmd.exe', ['/d', '/q', '/k', 'echo 1'], { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true })
   await new Promise<void>((resolve, reject) => {
     helper.stdout!.once('data', () => resolve())
     helper.once('error', reject)

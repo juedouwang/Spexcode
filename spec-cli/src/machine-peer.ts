@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { createConnection, createServer as createNetServer, type Server as NetServer } from 'node:net'
@@ -38,7 +38,10 @@ export type PeerGatewayFacts = { port: number; instanceId: string; credential: s
 type AcceptReply = { machineId: string; gateway: PeerGatewayFacts | null; backPort: number | null }
 
 export const peerStorePath = (): string => join(spexcodeHome(), 'gateway', 'peers.json')
-export const peerSocketPath = (): string => join(spexcodeHome(), 'gateway', 'peer.sock')
+// Windows has no filesystem sockets: the control listener is a named pipe keyed by the SpexCode home it serves.
+export const peerSocketPath = (): string => process.platform === 'win32'
+  ? `\\\\.\\pipe\\spexcode-peer-${createHash('sha1').update(spexcodeHome()).digest('hex').slice(0, 24)}`
+  : join(spexcodeHome(), 'gateway', 'peer.sock')
 
 function validPort(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 && value < 65536
@@ -320,7 +323,7 @@ export class MachinePeerGateway {
   // accepting listener is "another `spex dashboard`" — the same test claude-rendezvous applies to its socket file.
   private startControl(): Promise<void> {
     const path = peerSocketPath()
-    mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
+    mkdirSync(join(spexcodeHome(), 'gateway'), { recursive: true, mode: 0o700 })
     if (!existsSync(path)) {
       this.listenControl(path)
       return Promise.resolve()
