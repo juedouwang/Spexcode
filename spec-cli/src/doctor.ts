@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'node:fs'
-import { join, dirname, basename } from 'node:path'
+import { join, dirname, basename, delimiter } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { homedir } from 'node:os'
@@ -202,10 +202,14 @@ function hookState(hooksDir: string | null, name: string): HookState {
 // precondition behind a dozen confusing symptoms — a session shell whose PATH misses the global bin dir gets
 // `command not found` for spex/codex/claude (npm's global prefix landing off-PATH).
 function resolveOnPath(bin: string): string | null {
-  for (const d of (process.env.PATH || '').split(':')) {
+  // Windows: ';'-separated PATH, and a command is bin plus one of PATHEXT's extensions (codex.exe, claude.cmd)
+  const names = process.platform === 'win32' ? [bin, ...(process.env.PATHEXT || '.EXE;.CMD').split(';').filter(Boolean).map((ext) => bin + ext.toLowerCase())] : [bin]
+  for (const d of (process.env.PATH || '').split(delimiter)) {
     if (!d) continue
-    const p = join(d, bin)
-    try { accessSync(p, constants.X_OK); return p } catch { /* not here */ }
+    for (const name of names) {
+      const p = join(d, name)
+      try { accessSync(p, constants.X_OK); return p } catch { /* not here */ }
+    }
   }
   return null
 }

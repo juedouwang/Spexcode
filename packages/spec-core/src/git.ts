@@ -19,14 +19,19 @@ const GIT_SYNC_MAX_BUFFER = 1 << 27
 export const BOARD_GIT_CONCURRENCY = 4
 const gitByPath = new Map<string, string>()
 
+// Windows names the variable `Path`; only the live process.env looks it up case-insensitively, and a copied env
+// (`{ ...process.env }`, as every scrubbed child env is) answers `PATH` with undefined.
+const envVar = (env: NodeJS.ProcessEnv, name: string): string | undefined =>
+  process.platform === 'win32' ? env[Object.keys(env).find((key) => key.toUpperCase() === name) ?? name] : env[name]
+
 export function gitBinary(env: NodeJS.ProcessEnv = process.env): string {
-  const path = env.PATH || ''
+  const path = envVar(env, 'PATH') || ''
   const known = gitByPath.get(path)
   if (known) {
     try { accessSync(known, constants.X_OK); return known } catch {}
   }
   const names = process.platform === 'win32'
-    ? ['git', ...(env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean).map((extension) => `git${extension}`)]
+    ? ['git', ...(envVar(env, 'PATHEXT') || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean).map((extension) => `git${extension}`)]
     : ['git']
   for (const dir of path.split(delimiter)) {
     for (const name of names) {
