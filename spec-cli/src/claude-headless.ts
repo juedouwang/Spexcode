@@ -8,6 +8,7 @@ import type { DispatchResult, HarnessDeliveryRecord } from './harness.js'
 import { controlRequest, withTimeout } from './headless-controller.js'
 import { shQuote } from './sh.js'
 import { hostControlSocket } from './session-host.js'
+import { killTree, spawnShellCommand } from './winmux/native-spawn.mjs'
 
 type ControlRequest = { type: 'deliver'; text: string; mode: 'steer' | 'wake' } | { type: 'interrupt' }
 type ClaudeHeadlessDeliveryRecord = HarnessDeliveryRecord & { status?: string }
@@ -182,12 +183,14 @@ export class ClaudeHeadlessController {
     const mode = resume ? ['--resume', this.id] : ['--session-id', this.id]
     const args = ['-p', ...mode, '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose']
     const command = `exec ${this.claudeCmd} ${args.map(shQuote).join(' ')}`
-    const childProcess = spawn('/bin/sh', ['-lc', command], {
-      cwd: this.cwd,
-      env: process.env,
-      detached: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+    const childProcess = process.platform === 'win32'
+      ? spawnShellCommand(`${this.claudeCmd} ${args.map(shQuote).join(' ')}`, { cwd: this.cwd, env: process.env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] }) as ChildProcessWithoutNullStreams
+      : spawn('/bin/sh', ['-lc', command], {
+        cwd: this.cwd,
+        env: process.env,
+        detached: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
     let sawFirstEvent!: () => void
     const firstEvent = new Promise<void>((resolve) => { sawFirstEvent = resolve })
     let resolveExit!: (code: number | null) => void
@@ -296,6 +299,7 @@ export class ClaudeHeadlessController {
 
   private signalTurn(turn: ChildTurn, signal: NodeJS.Signals): void {
     const pid = turn.process.pid
+    if (process.platform === 'win32') { if (pid) killTree(pid); return }   // no process groups: the tree goes
     try {
       if (pid) process.kill(-pid, signal)
       else turn.process.kill(signal)

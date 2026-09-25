@@ -7,6 +7,7 @@ import type { DispatchResult, HarnessDeliveryRecord } from './harness.js'
 import { controlRequest, withTimeout } from './headless-controller.js'
 import { shQuote } from './sh.js'
 import { hostControlSocket } from './session-host.js'
+import { spawnShellCommand } from './winmux/native-spawn.mjs'
 
 type ControlRequest = { type: 'deliver'; text: string; mid?: string } | { type: 'interrupt' }
 type ChildTurn = { process: ChildProcess; exited: Promise<number | null> }
@@ -175,7 +176,9 @@ export class PiHeadlessController {
     // Keep pi's default text mode. `--mode json` is intentionally omitted: it can hang in this runtime.
     const args = ['-p', ...mode, text]
     const command = `exec ${this.piCmd} ${args.map(shQuote).join(' ')}`
-    const childProcess = spawn('/bin/sh', ['-lc', command], { cwd: this.cwd, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const childProcess = process.platform === 'win32'
+      ? spawnShellCommand(`${this.piCmd} ${args.map(shQuote).join(' ')}`, { cwd: this.cwd, env: process.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+      : spawn('/bin/sh', ['-lc', command], { cwd: this.cwd, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
     let resolveExit!: (code: number | null) => void
     const exited = new Promise<number | null>((resolve) => { resolveExit = resolve })
     const turn: ChildTurn = { process: childProcess, exited }

@@ -67,6 +67,7 @@ export async function createWorld(label, { launchers, config = {}, env: extraEnv
   // The world is a user's own shell: no inherited SpexCode or agent identity (the runner may itself be an agent).
   for (const name of ['SPEXCODE_API_URL', 'SPEXCODE_SESSION_ID', 'SPEX_SESSION_DATABASE_PATH', 'SPEX_SESSION_CONFIG', 'TMUX', 'TMUX_PANE',
     'CLAUDE_CODE_SESSION_ID', 'CODEX_THREAD_ID', 'OPENCODE_SESSION_ID', 'PI_SESSION_ID', 'ZCODE_SESSION_ID', 'CLAUDECODE']) delete env[name]
+  for (const name of Object.keys(env)) if (/^(CLAUDE_CODE_|CLAUDE_AGENT_SDK|CLAUDE_PID$|CLAUDE_EFFORT$|AI_AGENT$)/.test(name)) delete env[name]
   const world = { root, project, home, socket, env, git, backend: null, base: null, log: '' }
 
   world.spex = (args, options = {}) => execFileSync(process.execPath, spexArgs(args), {

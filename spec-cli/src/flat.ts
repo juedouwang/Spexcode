@@ -7,6 +7,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { scopeIds } from '@spexcode/archify/browser'
 import { FLATCODE_BANNER_SVG } from './flatcode-banner.js'
+import { spawnShellCommand } from './winmux/native-spawn.mjs'
 import { HARNESSES, MISSING_DEFAULT_LAUNCHER_ERROR, defaultLauncher, harnessById, launcherList, resolveLauncher, type Harness } from './harness.js'
 import { ensureDashboardArtifact } from './dashboard-assets.js'
 
@@ -101,7 +102,9 @@ function run(command: string, args: readonly string[], cwd: string, stdin = ''):
 // silent pipe would read as a hang, and the turn's own narration is the only progress there is to show.
 function runTurn(turn: { command: string; stdin: string }, cwd: string): Promise<number> {
   return new Promise((done) => {
-    const child = spawn('sh', ['-c', turn.command], { cwd, stdio: ['pipe', 'inherit', 'inherit'] })
+    const child = process.platform === 'win32'
+      ? spawnShellCommand(turn.command, { cwd, env: process.env, stdio: ['pipe', 'inherit', 'inherit'] })
+      : spawn('sh', ['-c', turn.command], { cwd, stdio: ['pipe', 'inherit', 'inherit'] })
     child.on('error', () => done(127))
     child.on('close', (code) => done(code ?? 1))
     // @@@ the exit code is the verdict, not the pipe - a harness that takes the prompt and closes stdin, or
