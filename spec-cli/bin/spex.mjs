@@ -4,7 +4,7 @@
 import os from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
 
 // Resolve from THIS package rather than cwd, so global and project-local installs run one compiled CLI.
@@ -115,7 +115,11 @@ if (existsSync(sourceRoot)) {
   }
 }
 const args = process.argv.slice(2)
-const env = { ...process.env }
+// @@@ in-process on Windows - there are no POSIX stop signals to forward (a stop there is a tree kill, which
+// reaches the verb either way), so the child below would only add a second Node start-up (~150ms) to every
+// `spex` call, and hooks call it on every tool use. Windows runs the CLI in this process.
+const inProcess = process.platform === 'win32'
+const env = inProcess ? process.env : { ...process.env }
 // A backend/dashboard is a project or host control plane, never the managed session that happened to start it.
 if (args[0] === 'serve' || args[0] === 'dashboard') {
   const identityKeys = (env.SPEXCODE_SESSION_IDENTITY_VARS
@@ -123,12 +127,16 @@ if (args[0] === 'serve' || args[0] === 'dashboard') {
     .split(',').map((key) => key.trim()).filter(Boolean)
   for (const key of identityKeys) delete env[key]
 }
-const child = spawn(process.execPath, [cli, ...args], { stdio: 'inherit', env })
-// @@@ signal forwarding - this launcher is the pid a shell, a monitor, or a harness's task-stop sees; the verb runs
-// in the child. Mirroring only the exit code meant `kill <spex-pid>` ended the launcher and ORPHANED a long-running
-// verb (a `session stream-dequeue` kept consuming its queue with no reader attached). Forward the stop signals to
-// the child while it lives, and exit the way it exited: its code, or 128+signal when a signal ended it.
-for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  process.on(signal, () => { if (child.exitCode === null && child.signalCode === null) child.kill(signal) })
+if (inProcess) {
+  await import(pathToFileURL(cli).href)
+} else {
+  const child = spawn(process.execPath, [cli, ...args], { stdio: 'inherit', env })
+  // @@@ signal forwarding - this launcher is the pid a shell, a monitor, or a harness's task-stop sees; the verb runs
+  // in the child. Mirroring only the exit code meant `kill <spex-pid>` ended the launcher and ORPHANED a long-running
+  // verb (a `session stream-dequeue` kept consuming its queue with no reader attached). Forward the stop signals to
+  // the child while it lives, and exit the way it exited: its code, or 128+signal when a signal ended it.
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(signal, () => { if (child.exitCode === null && child.signalCode === null) child.kill(signal) })
+  }
+  child.on('exit', (code, signal) => process.exit(code ?? (signal ? 128 + (os.constants.signals[signal] ?? 0) : 0)))
 }
-child.on('exit', (code, signal) => process.exit(code ?? (signal ? 128 + (os.constants.signals[signal] ?? 0) : 0)))

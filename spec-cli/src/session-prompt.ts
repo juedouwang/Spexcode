@@ -16,6 +16,10 @@ import { TMUX_SOCK, WINMUX_CLI } from './session-host.js'
 import { gitBashPath } from './winmux/git-bash.mjs'
 
 const WINMUX_BORN = fileURLToPath(new URL('./winmux/born.mjs', import.meta.url))
+// The pane side needs a console Node. Under the desktop app the backend is electron.exe, a GUI program whose console
+// children never reach the pane (an interactive agent draws nothing), so the pane runs the `node` on PATH - the same
+// Node the hooks already run `spex` with.
+const PANE_NODE = process.versions.electron ? 'node' : process.execPath
 
 const HARNESS = defaultHarness
 // the session's global store, created on demand — the launch artifacts (the script, agent.pid, the identity
@@ -177,7 +181,7 @@ export function launchScript(id: string, tail: string, harness: Harness = HARNES
   const receiptPath = join(storeDir(id), 'agent.identity.json')
   const born = process.platform === 'win32'
     // winmux/born.mjs is the Windows birth registration: it records the agent's real Windows pid (see there).
-    ? `MSYS_NO_PATHCONV=1 ${[process.execPath, WINMUX_BORN, pidPath, receiptPath, invocation].map(shQuote).join(' ')}`
+    ? `MSYS_NO_PATHCONV=1 ${[PANE_NODE, WINMUX_BORN, pidPath, receiptPath, invocation].map(shQuote).join(' ')}`
     : `sh -c ${shQuote(`rm -f ${shQuote(receiptPath)}; printf %s "$$" > ${shQuote(pidPath)}; exec env ${invocation}`)}`
   // Bounded relaunch on a FAST exit: the agent launcher can exit within seconds before the rendezvous socket
   // ever appears. That is enough evidence to retry, but not enough evidence to name the cause. Once the agent
@@ -234,7 +238,7 @@ export function launchScript(id: string, tail: string, harness: Harness = HARNES
   ]
   // Native Windows: the script's in-pane `tmux capture-pane -t "$TMUX_PANE"` addresses this session on winmux.
   const preamble = process.platform === 'win32'
-    ? [`tmux() { ${[process.execPath, WINMUX_CLI, '-L', TMUX_SOCK].map(shQuote).join(' ')} "$@"; }`, `TMUX_PANE=${shQuote(id)}`]
+    ? [`tmux() { ${[PANE_NODE, WINMUX_CLI, '-L', TMUX_SOCK].map(shQuote).join(' ')} "$@"; }`, `TMUX_PANE=${shQuote(id)}`]
     : []
   writeFileSync(file, [...preamble, ...launchBody].join('\n'))
   return file

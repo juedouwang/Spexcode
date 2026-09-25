@@ -38,8 +38,12 @@ proj="${CLAUDE_PROJECT_DIR:-$PWD}"
 # NOT the worktree — and per tree, so a dispatch can only read the manifest of the tree it fires in
 # ([[hook-dispatch]]). Slot key = this cwd's rev-parse --show-toplevel through hp_tree_dir. Empty if git
 # can't resolve.
-rt="$(cd "$proj" 2>/dev/null && hp_runtime_dir)" || rt=""
-slot="$(cd "$proj" 2>/dev/null && hp_tree_dir)" || slot=""
+# resolved in THIS shell (not a subshell) so hp_resolve_dirs can export them to the handlers below
+rt=""; slot=""
+if cd "$proj" 2>/dev/null; then
+  hp_resolve_dirs && { rt="$SPEXCODE_HP_RUNTIME_DIR"; slot="$SPEXCODE_HP_TREE_DIR"; }
+  cd "$OLDPWD" || exit 1
+fi
 
 # A project transport can outlive the tree that installed it. The current tree's last successful materialize
 # is the authority for whether its events are active. A tree without a published selection is inert.
@@ -63,7 +67,8 @@ input="$(cat 2>/dev/null || true)"    # capture stdin ONCE; each handler gets it
 ledger=""
 if [ "${SPEX_HOOK_LEDGER:-on}" != off ] && [ -n "$rt" ]; then
   ledger_dir="$rt/hook-ledger"
-  mkdir -p "$ledger_dir" 2>/dev/null && ledger="$ledger_dir/$(date +%Y-%m-%d).tsv" \
+  printf -v ledger_day '%(%Y-%m-%d)T' -1
+  { [ -d "$ledger_dir" ] || mkdir -p "$ledger_dir" 2>/dev/null; } && ledger="$ledger_dir/$ledger_day.tsv" \
     || printf 'dispatch.sh: hook ledger unwritable at %s\n' "$ledger_dir" >&2
 fi
 # the session column is the id the PAYLOAD names, raw — never the resolved SpexCode record id. Resolving that
@@ -72,14 +77,16 @@ fi
 # and the reader resolves aliases once, where it is free. Filled on the first handler, so an event with no
 # bound handlers pays nothing at all.
 ledger_session=unset
-now_ms() { if [ -n "${EPOCHREALTIME:-}" ]; then printf '%s' "${EPOCHREALTIME/./}" | cut -c1-13; else printf '%s000' "$(date +%s)"; fi; }
+# builtins only (no subshell, no cut/tr/date): each fork is ~30ms under Git Bash and these run twice per handler
+now_ms() { local v; if [ -n "${EPOCHREALTIME:-}" ]; then v=${EPOCHREALTIME/./}; printf -v "$1" '%s' "${v:0:13}"; else printf -v "$1" '%(%s)T000' -1; fi; }
 # one TSV line: ts_ms phase session harness event hook order code block ms reason — reason flattened to one line
 ledger_write() {
   [ -n "$ledger" ] || return 0
   [ "$ledger_session" != unset ] || ledger_session="$(hp_field "$input" session_id 2>/dev/null || true)"
   [ -n "$ledger_session" ] || ledger_session="${SPEXCODE_SESSION_ID:-}"
+  local reason="${8//[$'\t\n\r']/ }"
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$ledger_session" "$harness" "$event" "$3" "$4" "$5" "$6" "$7" \
-    "$(printf '%s' "$8" | tr '\t\n\r' '   ' | cut -c1-300)" >>"$ledger" 2>/dev/null \
+    "${reason:0:300}" >>"$ledger" 2>/dev/null \
     || { printf 'dispatch.sh: hook ledger append failed: %s\n' "$ledger" >&2; ledger=""; }
 }
 err="/tmp/.spex-hook-$$.err"          # per-dispatch (pid-unique) stderr capture; no cross-session race
@@ -95,6 +102,7 @@ rc=0
 # at the end. The fold is only reached when two handlers actually emitted JSON, so the ordinary dispatch pays
 # nothing for it. See [[dispatcher-runtime]].
 outs=()
+block_re='"decision"[[:space:]]*:[[:space:]]*"block"'
 json_count=0
 first_json=
 # manifest line: event<TAB>order<TAB>block<TAB>script  (pre-sorted by event,order,script)
@@ -102,9 +110,9 @@ while IFS=$'\t' read -r ev order block script; do
   [ "$ev" = "$event" ] || continue
   handler="$proj/$script"
   hook_name="${script%/*}"; hook_name="${hook_name##*/}"   # the node is the script's own folder
-  t0="$(now_ms)"; ledger_write "$t0" start "$hook_name" "$order" "" "" "" ""
+  now_ms t0; ledger_write "$t0" start "$hook_name" "$order" "" "" "" ""
   out="$(printf '%s' "$input" | bash "$handler" 2>"$err")"; code=$?
-  t1="$(now_ms)"
+  now_ms t1
   outs+=("$out")
   # cheap shape test only; the merger does the real parse. A handler whose stdout starts with `{` is claiming
   # to speak the structured contract.
@@ -113,7 +121,7 @@ while IFS=$'\t' read -r ev order block script; do
     '{'*) json_count=$((json_count + 1)); [ -n "$first_json" ] || first_json="$out" ;;
   esac
   blocked=0
-  if [ "$block" = "true" ] && { [ "$code" = "2" ] || printf '%s' "$out" | grep -q '"decision"[[:space:]]*:[[:space:]]*"block"'; }; then
+  if [ "$block" = "true" ] && { [ "$code" = "2" ] || [[ $out =~ $block_re ]]; }; then
     blocked=1
     cat "$err" >&2
     # codex reads a Stop block's continuation prompt from STDERR (+ exit 2), NOT the claude-style

@@ -1665,7 +1665,7 @@ test('shQuote preserves a single quote through a POSIX shell', () => {
 
 test('launchEnv keeps rendezvous bootstrap knowledge in the owning adapters', () => {
   const id = 'env-session'
-  const rendezvous = ['CLAUDE_BG_BACKEND=daemon', `CLAUDE_BG_RENDEZVOUS_SOCK=${rvSock(id)}`]
+  const rendezvous = ['CLAUDE_BG_BACKEND=daemon', `CLAUDE_BG_RENDEZVOUS_SOCK='${rvSock(id)}'`]
   for (const harness of [claudeHarness, piHarness, opencodeHarness, piHeadlessHarness, opencodeHeadlessHarness]) {
     assert.deepEqual(harness.launchEnv(id), rendezvous, harness.id)
   }

@@ -128,18 +128,25 @@ hp_session_id() {
 # truncation, and file/prompt content can never fake an unescaped quote. Codex payloads carry no such field
 # (its verified field set) so this never matches there. Echoes "1" when yes, else nothing.
 hp_is_subagent() {
-  printf '%s' "${1%%\"tool_input\"*}" | grep -q '"agent_id"[[:space:]]*:' && printf 1
+  local re='"agent_id"[[:space:]]*:'
+  [[ ${1%%\"tool_input\"*} =~ $re ]] && printf 1
 }
 
 # the per-PROJECT GLOBAL runtime dir (mirrors packages/spec-core/src/layout.ts `runtimeRoot`): <store>/projects/<enc>,
 # keyed by the project (dirname of the ABSOLUTE git-common-dir, so the answer is identical from main or any
 # worktree). The per-session dirs and the per-tree materialize slots (hp_tree_dir) live under it.
 # Echoes the dir; returns non-zero (echoing nothing) when git can't resolve, so a caller can `|| exit 0`.
+# @@@ resolved once per cwd - a fork costs ~1ms on Linux but ~30ms under Git Bash, and every handler asks for
+# these dirs (often twice). hp_resolve_dirs runs in the dispatcher's own shell and exports the answers keyed by
+# $PWD, so the handlers it runs in that same cwd read them back with no git and no subshell; any other cwd
+# (or a caller outside dispatch) resolves them itself exactly as before.
+hp_enc() { local v="$1"; printf '%s' "${v//[\/.:\\]/-}"; }
 hp_runtime_dir() {
+  if [ "${SPEXCODE_HP_DIRS_CWD:-}" = "$PWD" ] && [ -n "${SPEXCODE_HP_RUNTIME_DIR:-}" ]; then printf '%s' "$SPEXCODE_HP_RUNTIME_DIR"; return 0; fi
   local gcd
   gcd=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || gcd=$(realpath "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null)
   [ -n "$gcd" ] || return 1
-  printf '%s/projects/%s' "${SPEXCODE_HOME:-$HOME/.spexcode}" "$(printf '%s' "$(dirname "$gcd")" | sed 's#[/.:\]#-#g')"
+  printf '%s/projects/%s' "${SPEXCODE_HOME:-$HOME/.spexcode}" "$(hp_enc "${gcd%/*}")"
 }
 
 # the per-WORKTREE materialize slot (mirrors layout.ts `treeSlotDir`): <runtime>/trees/<enc(worktree-toplevel)> —
@@ -148,11 +155,21 @@ hp_runtime_dir() {
 # of the tree it fires in ([[hook-dispatch]] — the old single global file let the last-materialized tree's
 # hook set reach every other tree's sessions). Echoes the dir; returns non-zero when git can't resolve.
 hp_tree_dir() {
+  if [ "${SPEXCODE_HP_DIRS_CWD:-}" = "$PWD" ] && [ -n "${SPEXCODE_HP_TREE_DIR:-}" ]; then printf '%s' "$SPEXCODE_HP_TREE_DIR"; return 0; fi
   local rd top
   rd=$(hp_runtime_dir) || return 1
   top=$(git rev-parse --show-toplevel 2>/dev/null)
   [ -n "$top" ] || return 1
-  printf '%s/trees/%s' "$rd" "$(printf '%s' "$top" | sed 's#[/.:\]#-#g')"
+  printf '%s/trees/%s' "$rd" "$(hp_enc "$top")"
+}
+
+# resolve both dirs for the CURRENT shell's cwd and export them for the processes it starts there (see above).
+hp_resolve_dirs() {
+  local rd td
+  rd=$(hp_runtime_dir) || return 1
+  export SPEXCODE_HP_RUNTIME_DIR="$rd" SPEXCODE_HP_DIRS_CWD="$PWD"
+  td=$(hp_tree_dir) || td=""
+  export SPEXCODE_HP_TREE_DIR="$td"
 }
 
 # the per-session GLOBAL store dir for a session id — <runtime>/sessions/<id> (sibling of the per-project
@@ -185,10 +202,12 @@ hp_store_dir() {
 # package dir (moves exactly when the toolchain's content moves, not on every repo commit); an npm install
 # (no .git) answers with the package.json hash (npm bumps the version). env-stripped git — a git hook's
 # exported GIT_DIR must not misdirect repo discovery (same rule as git.ts's git()).
-SPEXCODE_HP_PKG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+# (the package dir is derived when asked, not with a subshell on every source of this library)
+SPEXCODE_HP_LIB="${BASH_SOURCE[0]}"
 hp_toolchain_version() {
-  ( cd "$SPEXCODE_HP_PKG" 2>/dev/null && env -u GIT_DIR -u GIT_INDEX_FILE git rev-parse 'HEAD:./' 2>/dev/null ) \
-    || sha256sum "$SPEXCODE_HP_PKG/package.json" 2>/dev/null | cut -d' ' -f1 \
+  local pkg; pkg="$(cd "$(dirname "$SPEXCODE_HP_LIB")/.." 2>/dev/null && pwd)"
+  ( cd "$pkg" 2>/dev/null && env -u GIT_DIR -u GIT_INDEX_FILE git rev-parse 'HEAD:./' 2>/dev/null ) \
+    || sha256sum "$pkg/package.json" 2>/dev/null | cut -d' ' -f1 \
     || echo unversioned
 }
 
