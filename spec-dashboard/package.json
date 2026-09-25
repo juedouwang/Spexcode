@@ -33,8 +33,8 @@
     "test:identity-e2e": "node test/identity-chain.e2e.mjs",
     "prebuild": "node scripts/patch-xterm-sync-resize.mjs",
     "build": "vite build --base ./",
-    "build:public": "VITE_PUBLIC_GRAPH_ONLY=1 vite build --outDir dist-public --base ./",
-    "build:public-single": "VITE_PUBLIC_GRAPH_ONLY=1 vite build --config vite.config.single.mjs --outDir dist-public-single --base ./",
+    "build:public": "vite build --mode public --outDir dist-public --base ./",
+    "build:public-single": "vite build --mode public --config vite.config.single.mjs --outDir dist-public-single --base ./",
     "prepack": "npm run build && npm run build:public && npm run build:public-single",
     "prepublishOnly": "node ../scripts/release-publish.mjs --from-package-publish",
     "preview": "vite preview"
