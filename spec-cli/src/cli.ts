@@ -8,7 +8,13 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 // Native Windows: a CLI started without a console (detached, or by the desktop app) borrows a hidden one before
 // it spawns git or bash, so those children inherit it instead of each allocating their own.
-if (process.platform === 'win32') await (await import('@spexcode/spec-core/win-process')).ensureWindowsConsole()
+if (process.platform === 'win32') {
+  // Node 23–24 on Windows aborts at process.exit() ("UV_HANDLE_CLOSING", exit 127 instead of the CLI's own code)
+  // when V8 schedules a WebAssembly tier-up task — undici's parser after a fetch — during teardown
+  // (nodejs/node#56645, fixed upstream in node_platform.cc). A short CLI run gains nothing from tier-up.
+  ;(await import('node:v8')).setFlagsFromString('--no-wasm-dynamic-tiering')
+  await (await import('@spexcode/spec-core/win-process')).ensureWindowsConsole()
+}
 
 const cmd = process.argv[2]
 
