@@ -56,6 +56,7 @@ function createSession(name, { cols, rows, cwd, env, command }) {
     title: hostname(),
     clients: new Set(),
     proc: null,
+    pending: '',
   }
   term.onTitleChange((title) => { session.title = title })
   term.onData((reply) => session.proc?.write(reply))
@@ -75,15 +76,26 @@ function spawnPane(session, { cwd, env, command }) {
   session.exited = new Promise((resolve) => proc.onExit(resolve))
   proc.onData((data) => {
     session.term.write(data)
-    // ConPTY opens with a Device Attributes query and holds the pane's output until a terminal answers. The
-    // mirror is the pane's terminal (as tmux is), so it answers; viewers must not answer it a second time.
-    const shown = data.replaceAll('\x1b[c', '')
+    const shown = viewerStream(session, data)
     if (shown) for (const client of session.clients) client.output(shown)
   })
   proc.onExit(({ exitCode }) => {
     log(`pane exit ${session.name} pid=${proc.pid} code=${exitCode}`)
     if (session.proc === proc) destroy(session, 'exited')
   })
+}
+
+// ConPTY asks its terminal questions of its own: Device Attributes at start (holding the pane's output until
+// answered) and the cursor position after a resize. The mirror is the pane's terminal, as tmux is, and answers
+// them; a viewer that saw them would answer again — every attached browser, each answer counted as that viewer
+// typing — so they never reach viewers. A query split across two chunks is held back until it completes.
+const CONPTY_QUERIES = /\x1b\[(?:c|6n)/g
+function viewerStream(session, data) {
+  let text = session.pending + data
+  const partial = /\x1b(?:\[6?)?$/.exec(text)
+  session.pending = partial ? partial[0] : ''
+  if (partial) text = text.slice(0, partial.index)
+  return text.replace(CONPTY_QUERIES, '')
 }
 
 function destroy(session, reason) {
@@ -400,8 +412,12 @@ function attach(conn, req) {
   return (frame) => {
     if (!session.clients.has(client)) return
     if (frame.t === 'i') {
-      client.activity = Date.now()
-      applySize(session)
+      // A focus report (ESC[I / ESC[O) is the terminal noticing a window change, not the person typing: it must
+      // not make a merely-unfocused viewer the latest one and take the grid back.
+      if (!/^(?:\x1b\[[IO])+$/.test(frame.d)) {
+        client.activity = Date.now()
+        applySize(session)
+      }
       session.proc.write(frame.d)
     } else if (frame.t === 'r') {
       client.cols = frame.c

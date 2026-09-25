@@ -93,7 +93,26 @@ export async function createWorld(label, { launchers, config = {}, env: extraEnv
     return world
   }
 
+  // the dashboard gateway (`spex serve ui`) in front of this world's backend
+  world.startUi = async () => {
+    const port = await freePort()
+    world.ui = `http://127.0.0.1:${port}`
+    world.uiProcess = spawn(process.execPath, spexArgs(['serve', 'ui', '--port', String(port), '--api-port', new URL(world.base).port]), {
+      cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'], detached: !windows,
+    })
+    world.uiProcess.stdout.on('data', (chunk) => { world.log += chunk })
+    world.uiProcess.stderr.on('data', (chunk) => { world.log += chunk })
+    await waitFor('dashboard gateway', async () => { try { return (await fetch(world.ui)).ok } catch { return false } }, 60_000, 250)
+    return world.ui
+  }
+
   world.stop = async () => {
+    if (world.uiProcess && world.uiProcess.exitCode === null) {
+      const closedUi = new Promise((resolve) => world.uiProcess.once('close', resolve))
+      if (windows) execFileSync('taskkill', ['/PID', String(world.uiProcess.pid), '/T', '/F'], { stdio: 'ignore' })
+      else process.kill(-world.uiProcess.pid, 'SIGKILL')
+      await closedUi
+    }
     if (!world.backend || world.backend.exitCode !== null) return
     const closed = new Promise((resolve) => world.backend.once('close', resolve))
     if (windows) execFileSync('taskkill', ['/PID', String(world.backend.pid), '/T', '/F'], { stdio: 'ignore' })
