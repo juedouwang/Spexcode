@@ -1,3 +1,4 @@
+import { resolve as resolvePath } from 'node:path'
 import type { Server as HttpServer, ServerResponse as HttpServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { createReadStream } from 'node:fs'
@@ -96,7 +97,8 @@ app.get('/api/instance', (c) => {
   const root = repoRoot()
   return c.json({
     instanceId: process.env.SPEXCODE_INSTANCE_ID ?? null,
-    root,
+    // the native path form the endpoint record carries (git answers E:/x on Windows; the record holds E:\x)
+    root: resolvePath(root),
     identity: resolveProjectIdentity(root, root),
     pid: process.pid,
     startedAt: instanceStartedAt,

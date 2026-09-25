@@ -13,11 +13,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { frameReader, pipePath, send } from './protocol.mjs'
 import { keyBytes } from './keys.mjs'
 import { gitBashPath } from './git-bash.mjs'
+import { killTree } from './native-spawn.mjs'
 
 // `--daemonize`: start the real server and exit at once, so the server's parent is gone and it stands outside the
 // starter's process tree (tmux's double fork). A tree kill of the backend must never take the sessions with it.
 if (process.argv[2] === '--daemonize') {
-  spawn(process.execPath, [fileURLToPath(import.meta.url), process.argv[3]], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+  spawn(process.execPath, [fileURLToPath(import.meta.url), process.argv[3]], { detached: true, stdio: 'ignore', windowsHide: true, cwd: dirname(fileURLToPath(import.meta.url)) }).unref()
   process.exit(0)
 }
 const socketName = process.argv[2]
@@ -104,7 +105,11 @@ function destroy(session, reason) {
   const proc = session.proc
   session.proc = null
   for (const client of session.clients) client.end(reason)
-  try { proc?.kill() } catch { /* the pane process already exited */ }
+  // a kill takes the pane's whole tree: an agent's children with a console of their own (MCP servers, tool
+  // hosts) do not die with the pseudo console, and on Windows a live process pins its cwd - the worktree the
+  // caller is about to move away.
+  if (proc && reason === 'killed') killTree(proc.pid)
+  else try { proc?.kill() } catch { /* the pane process already exited */ }
   session.term.dispose()
   log(`${reason} ${session.name}`)
   if (sessions.size === 0) emptyTimer = setTimeout(() => { if (sessions.size === 0) process.exit(0) }, EMPTY_EXIT_MS)
@@ -305,7 +310,8 @@ const COMMANDS = {
     return o.P ? `${format(o.F || '#{session_name}:', sessionVars(session))}\n` : ''
   }],
   'has-session': ['t:', (o) => { target(o.t); return '' }],
-  'kill-session': ['t:', (o) => { destroy(target(o.t), 'killed'); return '' }],
+  // answers once the pane is gone, so the caller can move its worktree right after (Windows refuses a busy dir)
+  'kill-session': ['t:', async (o) => { const session = target(o.t); destroy(session, 'killed'); await session.exited; return '' }],
   // The panes' processes die asynchronously (node-pty kills the console's process list); the server outlives them
   // so none is left to die later by console close, still holding its directory.
   'kill-server': ['', async () => {
@@ -346,7 +352,7 @@ const COMMANDS = {
     if (!o.k) fail(`pane ${session.paneId} still active`)
     const previous = session.proc
     session.proc = null
-    previous.kill()
+    killTree(previous.pid)
     spawnPane(session, { cwd: o.c || session.cwd, env: paneEnv(req.env, o.e), command: o.args.length ? o.args.join(' ') : null })
     log(`respawn-pane ${session.name} pid=${session.proc.pid}`)
     return ''

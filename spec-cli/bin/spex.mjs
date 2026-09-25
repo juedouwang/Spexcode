@@ -103,7 +103,7 @@ if (existsSync(sourceRoot)) {
     }
     try {
       if (sourceIsStale()) {
-        const build = spawnSync('npm', ['run', 'build'], { cwd: workspace, stdio: 'inherit' })
+        const build = spawnSync('npm run build', { cwd: workspace, stdio: 'inherit', shell: true })  // a shell resolves npm.cmd on Windows
         if (build.error || build.status !== 0 || !existsSync(cli)) {
           console.error('spex: source workspace build failed; fix it, then retry.')
           process.exit(build.status ?? 1)

@@ -11,7 +11,7 @@ export type AgentFact = { installed: boolean; path: string | null; loggedIn: boo
 export type LauncherFact = { projectId: string; project: string; name: string; harness: string; cmd: string; resolves: boolean; binary: string | null }
 export type HostFacts = {
   host: { kind: 'tmux-host' | 'process-host'; reason: string }
-  runtime: { kind: 'native-linux' | 'darwin' | 'wsl2'; label: string; distro?: string }
+  runtime: { kind: 'native-linux' | 'darwin' | 'wsl2' | 'native-windows'; label: string; distro?: string }
   versions: { node: string; tmux: string | null; git: string | null }
   agents: Record<'claude' | 'codex' | 'opencode' | 'pi', AgentFact>
   launchers: LauncherFact[]
@@ -105,17 +105,19 @@ function launcherFacts(roots: string[]): LauncherFact[] {
 
 export function collectHostFacts(roots = discoverRoots()): HostFacts {
   const wsl = isWsl()
-  const runtime = platform() === 'darwin'
+  const windows = platform() === 'win32'
+  const runtime = windows ? { kind: 'native-windows' as const, label: 'native windows' }
+    : platform() === 'darwin'
     ? { kind: 'darwin' as const, label: 'darwin' }
     : wsl ? { kind: 'wsl2' as const, label: 'wsl2', distro: process.env.WSL_DISTRO_NAME || undefined }
       : { kind: 'native-linux' as const, label: 'native linux' }
   const record = readHostRecord()
   return {
     host: sessionHost().kind === 'tmux-host'
-      ? { kind: 'tmux-host', reason: 'tmux is available on PATH' }
+      ? { kind: 'tmux-host', reason: windows ? 'the built-in winmux (ConPTY) session host stands in for tmux' : 'tmux is available on PATH' }
       : { kind: 'process-host', reason: 'tmux is absent from PATH; detached process hosting is active and only headless adapters are available' },
     runtime,
-    versions: { node: process.version, tmux: commandVersion('tmux', ['-V']), git: commandVersion('git', ['--version']) },
+    versions: { node: process.version, tmux: windows ? 'winmux (built-in)' : commandVersion('tmux', ['-V']), git: commandVersion('git', ['--version']) },
     agents: agentFacts(),
     launchers: launcherFacts(roots),
     ...(record ? { gateway: record } : {}),

@@ -66,7 +66,7 @@ const watchRoots = workspaceRoot
 function buildWorkspace(): boolean {
   if (!workspaceRoot) return true
   console.log('[supervisor] building workspace artifacts')
-  const result = spawnSync('npm', ['run', 'build'], { cwd: workspaceRoot, stdio: 'inherit' })
+  const result = spawnSync('npm run build', { cwd: workspaceRoot, stdio: 'inherit', shell: true })  // a shell resolves npm.cmd on Windows
   if (result.status === 0) return true
   console.error('[supervisor] workspace build failed — keeping current backend')
   return false
