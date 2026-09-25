@@ -135,6 +135,12 @@ function AddProjectModal({ onAdded, onClose, t }) {
             aria-label={t('projects.browseHome')} disabled={!listing?.home || loading || busy}
             onClick={() => browse(listing.home)}
           >~</button>
+          {(listing?.roots || []).map((root) => (
+            <button
+              key={root} type="button" className="proj-act icon proj-home-btn" data-tip={root} aria-label={root}
+              disabled={loading || busy} onClick={() => browse(root)}
+            >{root.slice(0, 2)}</button>
+          ))}
           <input
             className="proj-add-path" value={path} autoFocus spellCheck={false}
             onChange={(e) => { setPath(e.target.value); setError(null) }}

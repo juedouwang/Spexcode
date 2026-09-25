@@ -222,6 +222,7 @@ export async function browseProjectDirectories(path = '') {
     exists: data.exists !== false,
     parent: typeof data.parent === 'string' ? data.parent : null,
     home: typeof data.home === 'string' ? data.home : data.path,
+    roots: Array.isArray(data.roots) ? data.roots.filter((root) => typeof root === 'string') : [],
     gitRoot: typeof data.gitRoot === 'string' ? data.gitRoot : null,
     initialized: !!data.initialized,
     cataloged: !!data.cataloged,

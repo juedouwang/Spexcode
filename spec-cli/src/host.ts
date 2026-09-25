@@ -56,7 +56,8 @@ export function readCatalog(): CatalogEntry[] {
   try {
     const parsed = JSON.parse(raw)
     const list = Array.isArray(parsed?.projects) ? parsed.projects : []
-    return list.filter((e: any): e is CatalogEntry => e && typeof e.root === 'string')
+    // rows are compared in the native path form; rows written before roots were native may read E:/x
+    return list.filter((e: any): e is CatalogEntry => e && typeof e.root === 'string').map((e: CatalogEntry) => ({ ...e, root: resolve(e.root) }))
   } catch (e) {
     // reads degrade loud-but-alive (the reconciler must keep serving live records); WRITES refuse below,
     // so a malformed catalog is never silently clobbered.
@@ -86,7 +87,8 @@ function existingDirectory(dir: string): string {
 }
 
 function gitProjectRoot(dir: string): string | null {
-  try { return dirname(git(['-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir']).trim()) }
+  // resolve: the native form (git answers E:/x on Windows), the one form every record and catalog row compares
+  try { return resolve(dirname(git(['-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir']).trim())) }
   catch { return null }
 }
 
@@ -104,14 +106,20 @@ export type ProjectDirectoryListing = {
   path: string; exists: boolean; parent: string | null; home: string; gitRoot: string | null
   initialized: boolean; cataloged: boolean
   entries: Array<{ name: string; path: string; git: boolean; initialized: boolean }>
+  // Windows has one tree per drive and no parent above C:; the picker offers the drives that exist
+  roots: string[]
 }
+
+const filesystemRoots = (): string[] => process.platform === 'win32'
+  ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => `${letter}:\\`).filter((root) => existsSync(root))
+  : []
 export function browseProjectDirectories(dir?: string): ProjectDirectoryListing {
   const requested = (dir ?? '').trim() || homedir()
   if (!existsSync(resolve(requested))) {
     const path = resolve(requested)
     return {
       path, exists: false, parent: dirname(path) === path ? null : dirname(path), home: homedir(),
-      gitRoot: null, initialized: false, cataloged: false, entries: [],
+      gitRoot: null, initialized: false, cataloged: false, entries: [], roots: filesystemRoots(),
     }
   }
   const path = existingDirectory(requested)
@@ -141,6 +149,7 @@ export function browseProjectDirectories(dir?: string): ProjectDirectoryListing 
     initialized: !!gitRoot && existsSync(join(gitRoot, '.spec')),
     cataloged: !!gitRoot && readCatalog().some((entry) => entry.root === gitRoot),
     entries,
+    roots: filesystemRoots(),
   }
 }
 
